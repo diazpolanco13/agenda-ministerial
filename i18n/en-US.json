@@ -561,6 +561,18 @@
 				"description": "You'll come right back here to review it.",
 				"submit": "Sign in"
 			}
+		},
+		"institutional": {
+			"chip": "AGENDA",
+			"portalTitle": "Ministerial Agenda",
+			"portalSubtitle": "Management of agenda, meetings, agreements, commitments, and tasks for the Ministry of Defense office.",
+			"feature1Title": "Agreement tracking",
+			"feature1Body": "Centralized control of meetings, minutes, commitments by owner, and office deadline compliance.",
+			"feature2Title": "Traceability",
+			"feature2Body": "Institutional role-based access control, confidentiality safeguards, and a verifiable audit log of every action.",
+			"verifiedAccess": "Verified access",
+			"restrictedNotice": "Restricted official use · Not indexable",
+			"auditNotice": "All access, agreement records, and document consultations are recorded in the office institutional audit log."
 		}
 	},
 	"settings": {

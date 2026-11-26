@@ -6,6 +6,7 @@ export const supportedLocales = [
   "el-GR",
   "en-US",
   "es-ES",
+  "es-VE",
   "fr-FR",
   "hi-IN",
   "id-ID",
@@ -24,7 +25,7 @@ export const supportedLocales = [
 
 export type AppLocale = (typeof supportedLocales)[number];
 
-export const defaultLocale: AppLocale = "en-US";
+export const defaultLocale: AppLocale = "es-VE";
 
 export function isSupportedLocale(locale: string): locale is AppLocale {
   return (supportedLocales as readonly string[]).includes(locale);
@@ -42,6 +43,8 @@ export async function loadLocale(locale: AppLocale): Promise<object> {
       return (await import("./en-US.json")).default;
     case "es-ES":
       return (await import("./es-ES.json")).default;
+    case "es-VE":
+      return (await import("./es-VE.json")).default;
     case "fr-FR":
       return (await import("./fr-FR.json")).default;
     case "hi-IN":

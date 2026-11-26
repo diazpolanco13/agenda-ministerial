@@ -1052,7 +1052,8 @@ export async function runStartupTasks() {
   await seedDefaultWorkspaceRoles();
 
   initializePlugins();
-  initializeScheduler();
+  // AGENDA: el API de desarrollo (Tailscale) comparte BD con producción; crons solo en producción.
+  if (process.env.AGENDA_DISABLE_SCHEDULER !== "true") initializeScheduler();
   await initializeWebSocketAdapter();
 }
 
@@ -1084,7 +1085,10 @@ export async function startServer(
   );
 
   injectWebSocket(server);
-  const stopWebhookWorker = startWebhookWorker();
+  const stopWebhookWorker =
+    process.env.AGENDA_DISABLE_SCHEDULER === "true"
+      ? async () => {}
+      : startWebhookWorker();
 
   const gracefulShutdown = async () => {
     if (shuttingDown) return;

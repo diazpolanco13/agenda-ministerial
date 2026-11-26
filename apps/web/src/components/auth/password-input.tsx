@@ -1,4 +1,4 @@
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Lock } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,9 @@ export function PasswordInput(props: Omit<InputProps, "type">) {
 
   return (
     <InputGroup>
+      <InputGroupAddon align="inline-start">
+        <Lock className="size-4 text-muted-foreground" aria-hidden="true" />
+      </InputGroupAddon>
       <InputGroupInput
         size="lg"
         type={visible ? "text" : "password"}

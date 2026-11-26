@@ -16,16 +16,21 @@ export function Logo({ className = "" }: LogoProps) {
       to="/dashboard"
       className={`w-auto ${className}`}
     >
-      <img
-        src="/logo-dark.svg"
-        alt="Kaneo"
-        className="h-6 w-auto dark:hidden"
-      />
-      <img
-        src="/logo-light.svg"
-        alt="Kaneo"
-        className="hidden h-6 w-auto dark:block"
-      />
+      <span className="inline-flex items-center gap-2">
+        <img
+          src="/marca/sigefanb.webp"
+          alt="SIGEFANB · AGENDA"
+          className="h-7 w-auto object-contain dark:hidden"
+        />
+        <img
+          src="/marca/sigefanb-oscuro.png"
+          alt="SIGEFANB · AGENDA"
+          className="hidden h-7 w-auto object-contain dark:block"
+        />
+        <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase text-primary">
+          AGENDA
+        </span>
+      </span>
     </Link>
   );
 }

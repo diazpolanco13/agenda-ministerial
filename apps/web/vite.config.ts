@@ -76,6 +76,16 @@ export default defineConfig({
     allowedHosts: process.env.VITE_ALLOWED_HOSTS
       ? process.env.VITE_ALLOWED_HOSTS.split(",")
       : undefined,
+    // AGENDA: en dev por Tailscale la API va por el mismo origen (proxy /api → API dev, con websockets).
+    proxy: process.env.VITE_API_PROXY_TARGET
+      ? {
+          "/api": {
+            target: process.env.VITE_API_PROXY_TARGET,
+            changeOrigin: false,
+            ws: true,
+          },
+        }
+      : undefined,
     hmr: process.env.VITE_HMR_CLIENT_PORT
       ? { clientPort: Number(process.env.VITE_HMR_CLIENT_PORT), protocol: "wss" }
       : true,

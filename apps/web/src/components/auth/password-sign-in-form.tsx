@@ -1,5 +1,6 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { Link } from "@tanstack/react-router";
+import { ShieldCheck, User } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -13,7 +14,12 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import type { InputProps } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "@/lib/toast";
 import { AuthCaptcha } from "./auth-captcha";
@@ -25,6 +31,8 @@ import {
 import { PasswordInput } from "./password-input";
 import type { AuthCaptcha as AuthCaptchaState } from "./use-auth-captcha";
 
+// TODO fase 5: soportar inicio de sesión por cédula de identidad además de correo electrónico
+
 type PasswordSignInValues = { email: string; password: string };
 
 type PasswordSignInFormProps = {
@@ -34,6 +42,18 @@ type PasswordSignInFormProps = {
   disabled?: boolean;
   onSuccess: () => void;
 };
+
+// Reenvía id y atributos ARIA de FormControl directo al <input> real dentro de InputGroup.
+function EmailGroupInput(props: Omit<InputProps, "type">) {
+  return (
+    <InputGroup>
+      <InputGroupAddon align="inline-start">
+        <User className="size-4 text-muted-foreground" aria-hidden="true" />
+      </InputGroupAddon>
+      <InputGroupInput size="lg" type="email" {...props} />
+    </InputGroup>
+  );
+}
 
 export function PasswordSignInForm({
   defaultEmail,
@@ -103,10 +123,9 @@ export function PasswordSignInForm({
                 {t("auth:forms.email")}
               </FormLabel>
               <FormControl>
-                <Input
-                  size="lg"
-                  type="email"
-                  autoComplete="email"
+                <EmailGroupInput
+                  autoComplete="username"
+                  className="font-mono"
                   placeholder={t("auth:forms.emailPlaceholder")}
                   {...field}
                 />
@@ -148,10 +167,11 @@ export function PasswordSignInForm({
         <Button
           type="submit"
           size="lg"
-          className="w-full"
+          className="mt-2 h-11 w-full"
           loading={isPending}
           disabled={disabled || captcha.pending}
         >
+          <ShieldCheck className="size-4" aria-hidden="true" />
           {t("auth:signIn.submitPassword")}
         </Button>
       </form>

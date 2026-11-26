@@ -24,26 +24,7 @@ import { routeTree } from "./routeTree.gen";
 // router runs and strips it across the sign-up → onboarding redirect chain.
 captureCheckoutIntent();
 
-console.log(`
-                     ////////  
-              /////  ////////  
-            //////// ////////  
-  //////// ///////// ///////   
-  //////// ///////// //////    
-  //////// ///////// ////      
-  //////// ///////// ///       
-  //////// ///////// /////     
-  //////// ///////// //////    
-  //////// ///////// ////////  
-  //////// ///////// ////////  
-  //////// ///////// ////////  
-  //////// ////////            
-  ////////  /////              
-  ///////                      
-                   
-  
-  Project management that doesn't become the project.
-`);
+console.info("AGENDA · MPPD — SIGEFANB");
 
 const router = createRouter({
   routeTree,
