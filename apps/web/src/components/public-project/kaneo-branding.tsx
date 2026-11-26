@@ -1,7 +1,7 @@
 export function KaneoBranding() {
   return (
     <span className="text-muted-foreground">
-      MPPD · <span className="font-medium text-foreground">AGENDA</span>
+      SIGEFANB · <span className="font-medium text-foreground">Agenda Ministerial</span>
     </span>
   );
 }

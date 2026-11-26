@@ -2,10 +2,10 @@ import { Link, useLocation } from "@tanstack/react-router";
 import type * as React from "react";
 import { useEffect } from "react";
 
+import { BrandMark, TricolorBar } from "@/components/common/brand-mark";
 import { NavMain } from "@/components/nav-main";
 import { NavProjects } from "@/components/nav-projects";
-import { NavSecondary } from "@/components/nav-secondary";
-import { ThemeToggleDropdown } from "@/components/theme-toggle-dropdown";
+import { SidebarUserMenu } from "@/components/sidebar-user-menu";
 import { TrialCard } from "@/components/trial-card";
 import {
   Sidebar,
@@ -14,7 +14,6 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { VersionDisplay } from "@/components/version-display";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -34,48 +33,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       className="border-none"
       {...props}
     >
-      <SidebarHeader className="pt-1 pb-1.5 gap-2">
-        <div className="px-1.5 pt-1">
+      <SidebarHeader className="gap-2.5 px-2.5 pt-2.5 pb-2">
+        <div className="px-1">
           <Link
             to="/dashboard"
-            className="inline-flex items-center gap-2 rounded-md py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            className="inline-flex items-center rounded-md py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
           >
-            <img
-              src="/marca/sigefanb.webp"
-              alt="SIGEFANB"
-              className="h-6 w-auto object-contain dark:hidden"
-            />
-            <img
-              src="/marca/sigefanb-oscuro.png"
-              alt="SIGEFANB"
-              className="hidden h-6 w-auto object-contain dark:block"
-            />
-            <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase text-primary">
-              AGENDA
-            </span>
+            <BrandMark size="sm" collapsibleIcon />
           </Link>
         </div>
-        <div
-          className="flex h-0.5 w-full overflow-hidden rounded-full"
-          aria-hidden="true"
-        >
-          <span className="flex-1 bg-[#ffe600]" />
-          <span className="flex-1 bg-[#0056a2]" />
-          <span className="flex-1 bg-[#ec1651]" />
-        </div>
+        <TricolorBar className="w-full" />
         <WorkspaceSwitcher />
       </SidebarHeader>
       <SidebarContent className="overflow-hidden gap-1 py-1">
         <NavMain />
         <NavProjects />
       </SidebarContent>
-      <SidebarFooter>
-        <NavSecondary />
+      <SidebarFooter className="gap-2 border-t border-sidebar-border/60 p-2">
         <TrialCard />
-        <div className="flex items-center justify-between">
-          <VersionDisplay />
-          <ThemeToggleDropdown />
-        </div>
+        <SidebarUserMenu />
       </SidebarFooter>
     </Sidebar>
   );

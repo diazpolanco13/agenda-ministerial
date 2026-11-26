@@ -101,7 +101,7 @@ export default function ProjectLayout({
   return (
     <>
       <Layout.Header
-        className={cn("h-11 border-border/80 px-2", {
+        className={cn("h-11 border-border/60 px-2.5 sm:px-3", {
           "bg-card/90 backdrop-blur": !!background,
         })}
       >
@@ -160,7 +160,7 @@ export default function ProjectLayout({
           {(summary || toolbar) && (
             <div
               className={cn(
-                "flex h-11 shrink-0 items-center gap-2.5 border-border/80 border-b px-2 sm:px-3",
+                "flex h-10 shrink-0 items-center gap-2.5 border-border/60 border-b px-2.5 sm:px-3",
                 { "bg-card/80 backdrop-blur": !!background },
               )}
             >

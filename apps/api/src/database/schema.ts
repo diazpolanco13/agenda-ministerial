@@ -18,6 +18,7 @@ import type { AuditWebhookPayload } from "../admin/webhooks/audit-webhook-payloa
 import type { GitHubImportState } from "../github-integration/import-state";
 import type { ImportRunProject } from "../import/import-run-project";
 import type { TaskRecurrence } from "../task/recurrence/schema";
+import type { DiscursoOrdenBorrador } from "../discurso/types";
 
 // Timestamp columns without a time zone hold UTC (Drizzle reads and writes
 // them as UTC). A bare now() default would be cast through the session time
@@ -1688,4 +1689,51 @@ export const militarPerfilTable = pgTable(
       .notNull(),
   },
   (table) => [uniqueIndex("militar_perfil_cedula_idx").on(table.cedula)],
+);
+
+// Actas borrador de discursos o reuniones para revisión y aprobación en lote.
+export const discursoBorradorTable = pgTable(
+  "discurso_borrador",
+  {
+    id: text("id")
+      .$defaultFn(() => createId())
+      .primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaceTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => userTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    titulo: text("titulo").notNull(),
+    fuenteTipo: text("fuente_tipo").notNull().default("texto"),
+    fuenteReferencia: text("fuente_referencia"),
+    fechaDiscurso: timestamp("fecha_discurso", { mode: "date" }),
+    textoOriginal: text("texto_original").notNull(),
+    motorUsado: text("motor_usado").notNull().default("reglas"),
+    estado: text("estado").notNull().default("borrador"),
+    ordenes: jsonb("ordenes")
+      .$type<DiscursoOrdenBorrador[]>()
+      .notNull()
+      .default([]),
+    tareasCreadas: integer("tareas_creadas").notNull().default(0),
+    aprobadoEn: timestamp("aprobado_en", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" })
+      .default(utcNow)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+      .default(utcNow)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("discurso_borrador_workspace_idx").on(table.workspaceId),
+    index("discurso_borrador_created_by_idx").on(table.createdBy),
+    index("discurso_borrador_estado_idx").on(table.estado),
+  ],
 );

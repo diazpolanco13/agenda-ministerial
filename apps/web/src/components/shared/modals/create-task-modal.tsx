@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "@tanstack/react-router";
 import { produce } from "immer";
 import {
@@ -21,6 +22,7 @@ import {
   isCustomFieldValueEmpty,
 } from "@/components/custom-fields/missing-required-fields";
 import type { CustomFieldDefinition } from "@/components/project/custom-fields/types";
+import { SigefanbPersonSearch } from "@/components/sigefanb/sigefanb-person-search";
 import TaskDescriptionEditor from "@/components/task/task-description-editor";
 import TaskDueDatePicker from "@/components/task/task-due-date-picker";
 import { TaskRecurrenceBadge } from "@/components/task/task-recurrence-badge";
@@ -56,6 +58,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  provisionarResponsableSigefanb,
+  type SigefanbPersonalItem,
+} from "@/fetchers/sigefanb";
 import { useGetColumns } from "@/hooks/queries/column/use-get-columns";
 import { getColumnIcon } from "@/lib/column";
 import { getStatusDisplayLabel } from "@/lib/i18n/domain";
@@ -224,6 +231,7 @@ function CreateTaskModalContent({
     [t],
   );
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { data: workspace } = useActiveWorkspace();
   const { data: workspaceUsers } = useGetActiveWorkspaceUsers(
     workspace?.id || "",
@@ -232,15 +240,22 @@ function CreateTaskModalContent({
   const { data: workspaceLabels = [] } = useGetLabelsByWorkspace(
     workspace?.id || "",
   );
-  const { canCreateTasks, canCreateLabels } = useWorkspacePermission();
+  const { canCreateTasks, canCreateLabels, canAssignTasks } =
+    useWorkspacePermission();
   const canCreateTaskCapability = canCreateTasks();
   const canCreateLabelCapability = canCreateLabels();
+  const canAssignTaskCapability = canAssignTasks();
 
   const [title, setTitle] = useState("");
   const titleRef = useAutoGrowTextarea(title);
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<Priority>("no-priority");
   const [assigneeId, setAssigneeId] = useState("");
+  const [provisionedAssignee, setProvisionedAssignee] = useState<{
+    id: string;
+    name: string;
+    image: string | null;
+  } | null>(null);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [recurrence, setRecurrence] = useState<TaskRecurrence | null>(null);
@@ -249,6 +264,10 @@ function CreateTaskModalContent({
   const [projectOpen, setProjectOpen] = useState(false);
   const [priorityOpen, setPriorityOpen] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [assigneeTab, setAssigneeTab] = useState<"members" | "sigefanb">(
+    "members",
+  );
+  const [isProvisioningAssignee, setIsProvisioningAssignee] = useState(false);
   const [createMore, setCreateMore] = useState(false);
   const [labels, setLabels] = useState<Label[]>([]);
   const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
@@ -301,6 +320,9 @@ function CreateTaskModalContent({
   );
   const selectedUser =
     assigneeOptions.find((option) => option.id === assigneeId) ??
+    (provisionedAssignee?.id === assigneeId
+      ? provisionedAssignee
+      : undefined) ??
     (projectMembersPending
       ? workspaceAssigneeOptions.find((option) => option.id === assigneeId)
       : undefined);
@@ -615,6 +637,8 @@ function CreateTaskModalContent({
         setDescription("");
         setPriority("no-priority");
         setAssigneeId("");
+        setProvisionedAssignee(null);
+        setAssigneeTab("members");
         setStartDate(undefined);
         setDueDate(undefined);
         setRecurrence(null);
@@ -769,6 +793,104 @@ function CreateTaskModalContent({
   const removeLabel = (labelName: string) => {
     setLabels(labels.filter((l) => l.name !== labelName));
   };
+
+  const handleAssigneeOpenChange = (nextOpen: boolean) => {
+    setAssigneeOpen(nextOpen);
+    if (!nextOpen) {
+      setAssigneeTab("members");
+    }
+  };
+
+  const handleSelectSigefanbAssignee = async (item: SigefanbPersonalItem) => {
+    if (isProvisioningAssignee || !workspace?.id) return;
+    setIsProvisioningAssignee(true);
+    try {
+      const { user } = await provisionarResponsableSigefanb({
+        cedula: item.cedula,
+        workspaceId: workspace.id,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["workspace-users", workspace.id],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["active-workspace-users", workspace.id],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["projects", workspace.id],
+        }),
+      ]);
+      setProvisionedAssignee({
+        id: user.id,
+        name: user.name,
+        image: user.image,
+      });
+      setAssigneeId(user.id);
+      setAssigneeOpen(false);
+      setAssigneeTab("members");
+      toast.success(
+        `Responsable asignado: ${user.grado ? `${user.grado} ` : ""}${user.name}`,
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t("tasks:popover.assignee.updateError"),
+      );
+    } finally {
+      setIsProvisioningAssignee(false);
+    }
+  };
+
+  const memberListContent = (
+    <div className="max-h-64 space-y-1 overflow-y-auto p-1">
+      <button
+        type="button"
+        className="w-full flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent/50 text-left transition-colors h-8 rounded-md"
+        onClick={() => {
+          setAssigneeId("");
+          setProvisionedAssignee(null);
+          setAssigneeOpen(false);
+        }}
+      >
+        <div
+          className="w-6 h-6 rounded-full bg-muted border border-border flex items-center justify-center"
+          title={t("common:modals.createTask.assignUnassignedTitle")}
+        >
+          <span className="text-[10px] font-medium text-muted-foreground">
+            ?
+          </span>
+        </div>
+        <span className="text-sm">
+          {t("common:modals.createTask.assignUnassigned")}
+        </span>
+        {!selectedUser && <Check className="ml-auto h-4 w-4" />}
+      </button>
+      {assigneeOptions.map((member) => (
+        <button
+          key={member.id}
+          type="button"
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent/50 text-left transition-colors h-8 rounded-md"
+          onClick={() => {
+            setAssigneeId(member.id);
+            setProvisionedAssignee(null);
+            setAssigneeOpen(false);
+          }}
+        >
+          <Avatar className="h-6 w-6">
+            <AvatarImage src={member.image ?? ""} alt={member.name} />
+            <AvatarFallback className="text-xs font-medium border border-border/30">
+              {getInitials(member.name)}
+            </AvatarFallback>
+          </Avatar>
+          <span className="truncate text-sm">{member.name}</span>
+          {selectedUser?.id === member.id && (
+            <Check className="ml-auto h-4 w-4 shrink-0" />
+          )}
+        </button>
+      ))}
+    </div>
+  );
 
   // Defense-in-depth: if the user lacks task-create permission, don't render
   // the modal even if a stale trigger somehow opens it (e.g., keyboard
@@ -1002,7 +1124,10 @@ function CreateTaskModalContent({
                 </PopoverContent>
               </Popover>
 
-              <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
+              <Popover
+                open={assigneeOpen}
+                onOpenChange={handleAssigneeOpenChange}
+              >
                 <PopoverTrigger asChild>
                   <button
                     type="button"
@@ -1034,57 +1159,50 @@ function CreateTaskModalContent({
                     )}
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-48 p-1" align="start">
-                  <div className="space-y-1">
-                    <button
-                      type="button"
-                      className="w-full flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent/50 text-left transition-colors h-8"
-                      onClick={() => {
-                        setAssigneeId("");
-                        setAssigneeOpen(false);
-                      }}
+                <PopoverContent
+                  className={cn(
+                    "p-0",
+                    canAssignTaskCapability ? "w-80" : "w-48",
+                  )}
+                  align="start"
+                >
+                  {canAssignTaskCapability ? (
+                    <Tabs
+                      value={assigneeTab}
+                      onValueChange={(value) =>
+                        setAssigneeTab(value as "members" | "sigefanb")
+                      }
+                      className="gap-0"
                     >
-                      <div
-                        className="w-6 h-6 rounded-full bg-muted border border-border flex items-center justify-center"
-                        title={t(
-                          "common:modals.createTask.assignUnassignedTitle",
-                        )}
-                      >
-                        <span className="text-[10px] font-medium text-muted-foreground">
-                          ?
-                        </span>
+                      <div className="border-border/80 border-b px-2 pt-2 pb-1.5">
+                        <TabsList className="w-full">
+                          <TabsTrigger
+                            value="members"
+                            className="text-xs sm:h-7"
+                          >
+                            Miembros
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="sigefanb"
+                            className="text-xs sm:h-7"
+                          >
+                            Buscar en SIGEFANB
+                          </TabsTrigger>
+                        </TabsList>
                       </div>
-                      <span className="text-sm">
-                        {t("common:modals.createTask.assignUnassigned")}
-                      </span>
-                      {!selectedUser && <Check className="ml-auto h-4 w-4" />}
-                    </button>
-                    {assigneeOptions.map((member) => (
-                      <button
-                        key={member.id}
-                        type="button"
-                        className="w-full flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent/50 text-left transition-colors h-8"
-                        onClick={() => {
-                          setAssigneeId(member.id);
-                          setAssigneeOpen(false);
-                        }}
-                      >
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage
-                            src={member.image ?? ""}
-                            alt={member.name}
-                          />
-                          <AvatarFallback className="text-xs font-medium border border-border/30">
-                            {getInitials(member.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{member.name}</span>
-                        {selectedUser?.id === member.id && (
-                          <Check className="ml-auto h-4 w-4" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                      <TabsContent value="members">
+                        {memberListContent}
+                      </TabsContent>
+                      <TabsContent value="sigefanb">
+                        <SigefanbPersonSearch
+                          onSelect={handleSelectSigefanbAssignee}
+                          disabled={isProvisioningAssignee || !workspace?.id}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  ) : (
+                    memberListContent
+                  )}
                 </PopoverContent>
               </Popover>
 

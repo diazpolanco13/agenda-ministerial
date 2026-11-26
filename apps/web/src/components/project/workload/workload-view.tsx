@@ -170,12 +170,12 @@ export function WorkloadView({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-border/80 border-b px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-border/60 border-b px-4 py-3.5 sm:px-6">
         <div>
-          <h1 className="font-semibold text-base text-foreground">
+          <h1 className="font-semibold text-base tracking-tight text-foreground">
             {t("tasks:workload.title")}
           </h1>
-          <p className="text-muted-foreground text-xs">
+          <p className="mt-0.5 text-muted-foreground text-xs">
             {t("tasks:workload.subtitle")}
           </p>
         </div>
@@ -279,15 +279,15 @@ export function WorkloadView({
         <div className="min-h-0 flex-1 overflow-auto">
           <table className="w-full min-w-[760px] border-collapse text-sm">
             <thead className="sticky top-0 z-20 bg-card/95 backdrop-blur">
-              <tr className="border-border/80 border-b">
-                <th className="sticky left-0 z-30 w-64 min-w-56 border-border/80 border-r bg-card/95 px-4 py-2.5 text-left font-medium text-xs text-muted-foreground">
+              <tr className="border-border/60 border-b">
+                <th className="sticky left-0 z-30 w-64 min-w-56 border-border/60 border-r bg-card/95 px-4 py-2.5 text-left font-medium text-xs text-muted-foreground">
                   {t("tasks:workload.person")}
                 </th>
                 {weeks.map((week) => (
                   <th
                     key={week.key}
                     className={cn(
-                      "min-w-24 border-border/60 border-r px-2 py-2 text-center font-medium text-xs",
+                      "min-w-24 border-border/45 border-r px-2 py-2 text-center font-medium text-xs",
                       week.isCurrent
                         ? "bg-primary/8 text-primary"
                         : "text-muted-foreground",
@@ -316,9 +316,9 @@ export function WorkloadView({
                 return (
                   <tr
                     key={row.person.key}
-                    className="border-border/60 border-b transition-colors hover:bg-muted/20"
+                    className="border-border/45 border-b transition-colors hover:bg-muted/20"
                   >
-                    <td className="sticky left-0 z-10 border-border/80 border-r bg-background px-4 py-2.5">
+                    <td className="sticky left-0 z-10 border-border/60 border-r bg-background px-4 py-2.5">
                       <div className="flex items-center gap-2.5">
                         <ResponsableAvatar
                           userId={row.person.userId}

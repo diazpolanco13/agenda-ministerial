@@ -24,7 +24,7 @@ export function SettingsHeader({ breadcrumb }: SettingsHeaderProps) {
   const { t } = useTranslation();
 
   return (
-    <header className="flex h-10 shrink-0 items-center gap-1 border-b border-border bg-card p-2">
+    <header className="flex h-11 shrink-0 items-center gap-1 border-b border-border/60 bg-background px-3 py-2">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>

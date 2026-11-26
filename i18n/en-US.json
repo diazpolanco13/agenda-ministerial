@@ -576,7 +576,8 @@
       "feature2Body": "Institutional role-based access control, confidentiality safeguards, and a verifiable audit log of every action.",
       "verifiedAccess": "Verified access",
       "restrictedNotice": "Restricted official use · Not indexable",
-      "auditNotice": "All access, agreement records, and document consultations are recorded in the office institutional audit log."
+      "auditNotice": "All access, agreement records, and document consultations are recorded in the office institutional audit log.",
+      "footerLine": "Ministry of Popular Power for Defense · Official use"
     }
   },
   "settings": {
@@ -2893,7 +2894,8 @@
       "home": "Home",
       "inbox": "Inbox",
       "myTasks": "My tasks",
-      "invitePeople": "Invite people"
+      "invitePeople": "Invite people",
+      "fromSpeech": "From speech"
     },
     "projectList": {
       "viewProject": "View Project",
@@ -2927,7 +2929,12 @@
       "signedOutSuccess": "Signed out successfully",
       "signOutFailed": "Failed to sign out",
       "unnamedUser": "User",
+      "myProfile": "My profile",
       "settings": "Settings",
+      "theme": "Theme",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "themeSystem": "System",
       "signingOut": "Signing out...",
       "logOut": "Log out"
     },

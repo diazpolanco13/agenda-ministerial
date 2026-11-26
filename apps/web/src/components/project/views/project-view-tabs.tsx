@@ -67,13 +67,13 @@ function ViewTabLink({
         onSelect(view);
       }}
       className={cn(
-        "group relative inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 px-2.5 text-[13px] whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        "group relative inline-flex h-9 shrink-0 items-center gap-1.5 border-b-[1.5px] px-2.5 text-[13px] whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         active
-          ? "border-primary font-semibold text-foreground"
-          : "border-transparent font-medium text-muted-foreground hover:border-border/70 hover:text-foreground",
+          ? "border-primary font-medium text-foreground"
+          : "border-transparent font-normal text-muted-foreground hover:border-border/60 hover:text-foreground",
       )}
     >
-      <Icon className="size-3.5 shrink-0 opacity-80" aria-hidden={true} />
+      <Icon className="size-3.5 shrink-0 opacity-75" aria-hidden={true} />
       <span>{label}</span>
       {shortcut ? (
         <kbd
@@ -157,11 +157,11 @@ export function ProjectViewTabs({
     <nav
       aria-label={t("tasks:view.tabsAriaLabel")}
       className={cn(
-        "flex h-10 shrink-0 items-center gap-0.5 overflow-x-auto border-border/80 border-b px-2 sm:px-3",
+        "flex h-9 shrink-0 items-center gap-0.5 overflow-x-auto border-border/60 border-b px-2 sm:px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className,
       )}
     >
-      <div className="flex min-w-0 items-center gap-0.5">
+      <div className="flex shrink-0 items-center gap-0.5">
         {QUICK_VIEW_TABS.map((tab) => (
           <ViewTabLink
             key={tab.id}

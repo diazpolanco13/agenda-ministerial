@@ -239,11 +239,11 @@ export function NavProjects() {
   return (
     <>
       <Collapsible defaultOpen className="group/collapsible">
-        <SidebarGroup className="group-data-[collapsible=icon]:hidden gap-1 p-2 pt-1">
+        <SidebarGroup className="group-data-[collapsible=icon]:hidden gap-1 px-2.5 pt-2 pb-1">
           <CollapsibleTrigger
             className="data-panel-open:[&_svg]:rotate-90"
             render={
-              <SidebarGroupLabel className="h-7 cursor-pointer justify-start gap-1 px-0 text-sidebar-accent-foreground" />
+              <SidebarGroupLabel className="h-7 cursor-pointer justify-start gap-1 px-1 text-muted-foreground/80" />
             }
           >
             <span>{t("navigation:sidebar.projects")}</span>
@@ -274,7 +274,7 @@ export function NavProjects() {
                 onDragEnd={handleDragEnd}
                 onDragCancel={endDrag}
               >
-                <SidebarMenu className="gap-0.5">
+                <SidebarMenu className="gap-1">
                   <SortableContext
                     items={projects?.map((project) => project.id) ?? []}
                     strategy={verticalListSortingStrategy}
@@ -293,11 +293,11 @@ export function NavProjects() {
                           <SidebarMenuButton
                             isActive={isCurrentProject(project.id)}
                             size="default"
-                            className="h-8 text-sm"
+                            className="h-8.5 px-2.5 text-sm"
                             onClick={() => handleProjectClick(project)}
                             {...boardHoverPrefetch(project.id)}
                           >
-                            <ProjectIcon aria-hidden="true" />
+                            <ProjectIcon className="stroke-[1.75]" aria-hidden="true" />
                             <span className="min-w-0 flex-1 truncate">
                               {project.name}
                             </span>

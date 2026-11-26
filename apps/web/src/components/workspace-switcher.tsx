@@ -19,7 +19,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
-import { UserAvatar } from "@/components/user-avatar";
 import useGetConfig from "@/hooks/queries/config/use-get-config";
 import useActiveWorkspace from "@/hooks/queries/workspace/use-active-workspace";
 import useGetWorkspaces from "@/hooks/queries/workspace/use-get-workspaces";
@@ -190,11 +189,8 @@ export function WorkspaceSwitcher() {
           </SidebarMenuItem>
         </SidebarMenu>
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center">
           <Search />
-          <div className="h-8 w-8 shrink-0">
-            <UserAvatar />
-          </div>
         </div>
       </div>
 

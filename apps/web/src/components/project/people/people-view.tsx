@@ -134,11 +134,11 @@ export function PeopleView({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-background">
-      <div className="border-border/80 border-b px-4 py-3 sm:px-6">
-        <h1 className="font-semibold text-base text-foreground">
+      <div className="border-border/60 border-b px-4 py-3.5 sm:px-6">
+        <h1 className="font-semibold text-base tracking-tight text-foreground">
           {t("tasks:people.title")}
         </h1>
-        <p className="text-muted-foreground text-xs">
+        <p className="mt-0.5 text-muted-foreground text-xs">
           {t("tasks:people.subtitle")}
         </p>
       </div>
@@ -167,10 +167,16 @@ export function PeopleView({
               militaryByUserId,
               card.tasks,
             );
+            const subtitle = military.grado
+              ? `${military.grado}${military.unidad ? ` · ${military.unidad}` : ""}`
+              : card.person.subtitle;
             return (
-              <Card key={card.person.key} className="justify-between">
+              <Card
+                key={card.person.key}
+                className="justify-between border-border/70"
+              >
                 <CardHeader className="gap-3 pb-3">
-                  <div className="flex items-center gap-3.5">
+                  <div className="flex items-center gap-3">
                     <ResponsableAvatar
                       userId={card.person.userId}
                       name={card.person.name}
@@ -182,59 +188,55 @@ export function PeopleView({
                       unidad={military.unidad}
                       showHoverCard
                       assigned={card.person.isAssigned}
-                      size="lg"
+                      size="md"
+                      className="size-11 text-sm"
                     />
                     <div className="min-w-0 flex-1">
                       <h2 className="truncate font-semibold text-sm text-foreground">
                         {card.person.name}
                       </h2>
                       <p className="truncate text-xs text-muted-foreground">
-                        {military.grado
-                          ? `${military.grado}${military.unidad ? ` · ${military.unidad}` : ""}`
-                          : card.person.subtitle ||
-                            t("tasks:people.totalAssigned", {
-                              count: card.total,
-                            })}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                        {t("tasks:people.totalAssigned", { count: card.total })}
+                        {subtitle ||
+                          t("tasks:people.totalAssigned", {
+                            count: card.total,
+                          })}
                       </p>
                     </div>
                   </div>
                 </CardHeader>
 
-                <CardContent className="flex flex-col gap-4">
-                  <div className="grid grid-cols-4 gap-1.5">
-                    <div className="rounded-lg border border-border/70 bg-muted/30 px-1 py-1.5 text-center">
+                <CardContent className="flex flex-col gap-3.5">
+                  <div className="grid grid-cols-4 divide-x divide-border/60 rounded-lg bg-muted/40 py-2 text-center">
+                    <div className="min-w-0 px-1">
                       <div className="font-semibold text-sm text-foreground tabular-nums">
                         {card.open}
                       </div>
-                      <div className="text-[10px] tracking-tight text-muted-foreground">
+                      <div className="truncate text-[10px] text-muted-foreground sm:text-[11px]">
                         {t("tasks:people.open")}
                       </div>
                     </div>
-                    <div className="rounded-lg border border-border/70 bg-muted/30 px-1 py-1.5 text-center">
+                    <div className="min-w-0 px-1">
                       <div className="font-semibold text-sm text-foreground tabular-nums">
                         {card.completed}
                       </div>
-                      <div className="text-[10px] tracking-tight text-muted-foreground">
+                      <div className="truncate text-[10px] text-muted-foreground sm:text-[11px]">
                         {t("tasks:people.completed")}
                       </div>
                     </div>
-                    <div
-                      className={cn(
-                        "rounded-lg border px-1 py-1.5 text-center",
-                        card.overdue > 0
-                          ? "border-destructive/40 bg-destructive/12 text-destructive dark:bg-destructive/20 dark:text-red-300"
-                          : "border-border/70 bg-muted/30 text-foreground",
-                      )}
-                    >
-                      <div className="font-semibold text-sm tabular-nums">
+                    <div className="min-w-0 px-1">
+                      <div
+                        className={cn(
+                          "font-semibold text-sm tabular-nums",
+                          card.overdue > 0
+                            ? "text-destructive dark:text-red-300"
+                            : "text-foreground",
+                        )}
+                      >
                         {card.overdue}
                       </div>
                       <div
                         className={cn(
-                          "text-[10px] tracking-tight",
+                          "truncate text-[10px] sm:text-[11px]",
                           card.overdue > 0
                             ? "text-destructive/90 dark:text-red-300"
                             : "text-muted-foreground",
@@ -243,20 +245,20 @@ export function PeopleView({
                         {t("tasks:people.overdue")}
                       </div>
                     </div>
-                    <div className="rounded-lg border border-border/70 bg-muted/30 px-1 py-1.5 text-center">
+                    <div className="min-w-0 px-1">
                       <div className="font-semibold text-sm text-foreground tabular-nums">
                         {card.compliance}%
                       </div>
-                      <div className="text-[10px] tracking-tight text-muted-foreground">
+                      <div className="truncate text-[10px] text-muted-foreground sm:text-[11px]">
                         {t("tasks:people.compliance")}
                       </div>
                     </div>
                   </div>
 
-                  <Progress value={card.compliance} className="gap-1" />
+                  <Progress value={card.compliance} className="gap-1 [&_[data-slot=progress-track]]:h-1" />
 
                   <div>
-                    <div className="mb-1.5 font-medium text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <div className="mb-1.5 text-xs font-medium text-muted-foreground">
                       {t("tasks:people.recentTasks")}
                     </div>
                     {card.keyTasks.length === 0 ? (
@@ -264,7 +266,7 @@ export function PeopleView({
                         {t("tasks:people.noRecentTasks")}
                       </p>
                     ) : (
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-0.5">
                         {card.keyTasks.map((task) => {
                           const statusSwatch = getStatusColor(task.status);
                           const overdue = isTaskOverdue(task, project?.columns);
@@ -273,7 +275,7 @@ export function PeopleView({
                               key={task.id}
                               type="button"
                               onClick={() => onOpenTask(task.id)}
-                              className="flex items-center justify-between gap-2 rounded-md border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border/70 hover:bg-accent/60"
+                              className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent/60"
                             >
                               <div className="flex min-w-0 items-center gap-2">
                                 <span
@@ -308,12 +310,12 @@ export function PeopleView({
                 </CardContent>
 
                 {card.person.userId ? (
-                  <CardFooter className="border-border/60 border-t pt-3 pb-4">
+                  <CardFooter className="border-border/50 border-t px-4 py-2.5">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
-                      className="w-full justify-between"
+                      className="w-full justify-between text-muted-foreground hover:text-foreground"
                       onClick={() => onViewInGantt(card.person.userId!)}
                     >
                       <span>{t("tasks:people.filterInGantt")}</span>

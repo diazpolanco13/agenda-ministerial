@@ -1,23 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TrialExpiredCallout } from "@/components/billing/trial-expired-callout";
 import WorkspaceLayout from "@/components/common/workspace-layout";
-import { ActivityFeed } from "@/components/home/activity-feed";
-import { getDayPart } from "@/components/home/day-part";
+import { AgendaTodayCard } from "@/components/executive/agenda-today-card";
+import { CommandHeader } from "@/components/executive/command-header";
+import { CompactActivityCard } from "@/components/executive/compact-activity-card";
+import { KpiStrip } from "@/components/executive/kpi-strip";
+import { RecentOrdersCard } from "@/components/executive/recent-orders-card";
+import { TopResponsablesCard } from "@/components/executive/top-responsables-card";
 import { HomeProjects } from "@/components/home/home-projects";
-import { UpNext } from "@/components/home/up-next";
-import { WeekStrip } from "@/components/home/week-strip";
 import PageTitle from "@/components/page-title";
 import CreateProjectModal from "@/components/shared/modals/create-project-modal";
 import CreateTaskModal from "@/components/shared/modals/create-task-modal";
 import { Button } from "@/components/ui/button";
+import { useExecutiveSummary } from "@/hooks/queries/executive/use-executive-summary";
 import useGetProjects from "@/hooks/queries/project/use-get-projects";
-import useGetAssignedTasks from "@/hooks/queries/task/use-get-assigned-tasks";
-import { useLocalDay } from "@/hooks/use-local-day";
 import { useWorkspacePermission } from "@/hooks/use-workspace-permission";
-import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute(
   "/_layout/_authenticated/dashboard/workspace/$workspaceId/",
@@ -27,93 +27,99 @@ export const Route = createFileRoute(
 
 function RouteComponent() {
   const { t } = useTranslation();
-  const day = useLocalDay();
   const { workspaceId } = Route.useParams();
-  const {
-    data: assigned,
-    isLoading,
-    isError,
-  } = useGetAssignedTasks(workspaceId);
+  const executiveQuery = useExecutiveSummary(workspaceId);
   const { data: projects } = useGetProjects({ workspaceId }, true);
   const { canCreateTasks, canCreateProjects } = useWorkspacePermission();
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+
   const needsProjectFirst = projects?.length === 0 && canCreateProjects();
   const openCreateProject = canCreateProjects()
     ? () => setIsCreateProjectOpen(true)
     : undefined;
 
-  const greetings = {
-    morning: t("workspace:home.greeting.morning"),
-    afternoon: t("workspace:home.greeting.afternoon"),
-    evening: t("workspace:home.greeting.evening"),
-  };
+  const summary = executiveQuery.data;
 
   return (
     <>
       <PageTitle title={t("workspace:home.pageTitle")} />
       <WorkspaceLayout title={t("workspace:home.pageTitle")}>
-        <div className="h-full overflow-y-auto">
+        <div className="h-full overflow-y-auto overflow-x-hidden">
           <TrialExpiredCallout workspaceId={workspaceId} className="m-4" />
-          <div className="mx-auto flex w-full max-w-5xl flex-col gap-9 px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
-            <header className="flex items-end justify-between gap-4">
-              <div className="flex flex-col gap-1.5">
-                <p className="font-medium text-[13px] text-muted-foreground">
-                  {formatDate(new Date(day), {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
-                <h1 className="font-semibold text-3xl text-foreground tracking-tight">
-                  {greetings[getDayPart()]}
-                </h1>
-              </div>
-              {canCreateTasks() && (
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    needsProjectFirst
-                      ? setIsCreateProjectOpen(true)
-                      : setIsCreateTaskOpen(true)
-                  }
-                >
-                  <Plus />
-                  {t("workspace:home.newTask")}
-                </Button>
-              )}
-            </header>
-
-            <WeekStrip
-              tasks={assigned?.tasks ?? []}
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+            <CommandHeader
               workspaceId={workspaceId}
+              usuario={summary?.usuario}
+              isLoading={executiveQuery.isLoading}
+              canCreateTasks={canCreateTasks()}
+              needsProjectFirst={needsProjectFirst}
+              onCreateTask={() =>
+                needsProjectFirst
+                  ? setIsCreateProjectOpen(true)
+                  : setIsCreateTaskOpen(true)
+              }
             />
 
-            {assigned && assigned.total > assigned.tasks.length && (
-              <p className="text-muted-foreground text-xs">
-                {t("workspace:home.week.truncated", {
-                  shown: assigned.tasks.length,
-                  total: assigned.total,
-                })}
-              </p>
-            )}
+            {executiveQuery.isError && !summary ? (
+              <div
+                role="alert"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
+              >
+                <span className="text-foreground">
+                  No se pudo cargar el Panel de Mando.
+                </span>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() => void executiveQuery.refetch()}
+                >
+                  <RefreshCw />
+                  Reintentar
+                </Button>
+              </div>
+            ) : null}
 
-            <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
-              <div className="flex min-w-0 flex-col gap-9">
-                <UpNext
-                  tasks={assigned?.tasks}
-                  total={assigned?.total ?? 0}
-                  isLoading={isLoading}
-                  isError={isError}
+            <KpiStrip
+              kpis={summary?.kpis}
+              isLoading={executiveQuery.isLoading}
+            />
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+              <div className="flex min-w-0 flex-col gap-6">
+                <RecentOrdersCard
                   workspaceId={workspaceId}
+                  items={summary?.ordenesRecientes}
+                  isLoading={executiveQuery.isLoading}
+                  isError={executiveQuery.isError}
                 />
-                <HomeProjects
+                <AgendaTodayCard
                   workspaceId={workspaceId}
-                  onCreateProject={openCreateProject}
+                  items={summary?.agendaHoy}
+                  isLoading={executiveQuery.isLoading}
+                  isError={executiveQuery.isError}
                 />
               </div>
-              <ActivityFeed workspaceId={workspaceId} />
+
+              <div className="flex min-w-0 flex-col gap-6">
+                <TopResponsablesCard
+                  items={summary?.topResponsables}
+                  isLoading={executiveQuery.isLoading}
+                  isError={executiveQuery.isError}
+                />
+                <CompactActivityCard
+                  workspaceId={workspaceId}
+                  items={summary?.actividadCompacta}
+                  isLoading={executiveQuery.isLoading}
+                  isError={executiveQuery.isError}
+                />
+              </div>
             </div>
+
+            <HomeProjects
+              workspaceId={workspaceId}
+              onCreateProject={openCreateProject}
+            />
           </div>
         </div>
       </WorkspaceLayout>

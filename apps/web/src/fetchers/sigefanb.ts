@@ -13,6 +13,18 @@ export type SigefanbPersonalItem = {
   fotoUrl: string;
 };
 
+export type SigefanbSmartCandidate = SigefanbPersonalItem & {
+  score: number;
+  motivo: string;
+};
+
+export type BuscarPersonalInteligenteInput = {
+  q: string;
+  grado?: string | null;
+  componente?: string | null;
+  limit?: number;
+};
+
 export type ProvisionarResponsableInput = {
   cedula: string;
   workspaceId: string;
@@ -49,6 +61,34 @@ export async function buscarPersonalSigefanb(
   }
 
   return (await response.json()) as SigefanbPersonalItem[];
+}
+
+export async function buscarPersonalInteligenteSigefanb(
+  input: BuscarPersonalInteligenteInput,
+): Promise<SigefanbSmartCandidate[]> {
+  const params = new URLSearchParams({ q: input.q });
+  if (input.grado) {
+    params.set("grado", input.grado);
+  }
+  if (input.componente) {
+    params.set("componente", input.componente);
+  }
+  if (input.limit !== undefined) {
+    params.set("limit", String(input.limit));
+  }
+
+  const response = await fetch(
+    getApiUrl(`/sigefanb/personal/inteligente?${params.toString()}`),
+    {
+      credentials: "include",
+    },
+  );
+
+  if (!response.ok) {
+    throw await HttpError.fromResponse(response);
+  }
+
+  return (await response.json()) as SigefanbSmartCandidate[];
 }
 
 export async function obtenerPersonalSigefanb(

@@ -185,11 +185,11 @@ export function ProjectDashboardView({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-background">
-      <div className="border-border/80 border-b px-4 py-3 sm:px-6">
-        <h1 className="font-semibold text-base text-foreground">
+      <div className="border-border/60 border-b px-4 py-3.5 sm:px-6">
+        <h1 className="font-semibold text-base tracking-tight text-foreground">
           {t("tasks:dashboard.title")}
         </h1>
-        <p className="text-muted-foreground text-xs">
+        <p className="mt-0.5 text-muted-foreground text-xs">
           {t("tasks:dashboard.subtitle")}
         </p>
       </div>
@@ -213,13 +213,13 @@ export function ProjectDashboardView({
       ) : (
         <div className="flex flex-col gap-5 p-4 sm:p-6">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <Card className="p-4">
+            <Card className="border-border/70 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-muted-foreground text-xs">
                     {t("tasks:dashboard.overallProgress")}
                   </p>
-                  <p className="mt-1 font-bold text-2xl text-foreground tabular-nums">
+                  <p className="mt-1 font-semibold text-2xl text-foreground tabular-nums">
                     {metrics.percent}%
                   </p>
                 </div>
@@ -227,20 +227,20 @@ export function ProjectDashboardView({
                   <CircularProgress
                     completed={metrics.completed}
                     total={metrics.total}
-                    size={48}
-                    strokeWidth={4.5}
+                    size={44}
+                    strokeWidth={4}
                   />
                 </div>
               </div>
             </Card>
 
-            <Card className="p-4">
+            <Card className="border-border/70 p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-muted-foreground text-xs">
                     {t("tasks:dashboard.totalTasks")}
                   </p>
-                  <p className="mt-1 font-bold text-2xl text-foreground tabular-nums">
+                  <p className="mt-1 font-semibold text-2xl text-foreground tabular-nums">
                     {metrics.total}
                   </p>
                 </div>
@@ -248,13 +248,13 @@ export function ProjectDashboardView({
               </div>
             </Card>
 
-            <Card className="p-4">
+            <Card className="border-border/70 p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-muted-foreground text-xs">
                     {t("tasks:dashboard.openTasks")}
                   </p>
-                  <p className="mt-1 font-bold text-2xl text-foreground tabular-nums">
+                  <p className="mt-1 font-semibold text-2xl text-foreground tabular-nums">
                     {metrics.open}
                   </p>
                 </div>
@@ -262,13 +262,13 @@ export function ProjectDashboardView({
               </div>
             </Card>
 
-            <Card className="p-4">
+            <Card className="border-border/70 p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-muted-foreground text-xs">
                     {t("tasks:dashboard.completedTasks")}
                   </p>
-                  <p className="mt-1 font-bold text-2xl text-foreground tabular-nums">
+                  <p className="mt-1 font-semibold text-2xl text-foreground tabular-nums">
                     {metrics.completed}
                   </p>
                 </div>
@@ -278,9 +278,9 @@ export function ProjectDashboardView({
 
             <Card
               className={cn(
-                "p-4",
+                "border-border/70 p-4",
                 metrics.overdue > 0 &&
-                  "border-destructive/45 bg-destructive/8 dark:bg-destructive/15",
+                  "border-destructive/40 bg-destructive/6 dark:bg-destructive/12",
               )}
             >
               <div className="flex items-start justify-between">
@@ -297,7 +297,7 @@ export function ProjectDashboardView({
                   </p>
                   <p
                     className={cn(
-                      "mt-1 font-bold text-2xl tabular-nums",
+                      "mt-1 font-semibold text-2xl tabular-nums",
                       metrics.overdue > 0
                         ? "text-destructive dark:text-red-300"
                         : "text-foreground",

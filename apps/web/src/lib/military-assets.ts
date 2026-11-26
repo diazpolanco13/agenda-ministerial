@@ -33,12 +33,7 @@ const patterns: [RegExp, string, string, RankInsignia["shape"]][] = [
   [/^VICEALMIRANTE$/, "vicealmirante", "Vicealmirante", "horizontal"],
   [/^CONTRALMIRANTE$/, "contralmirante", "Contralmirante", "horizontal"],
   [/^ALMIRANTE$/, "almirante", "Almirante", "horizontal"],
-  [
-    /^CAPITAN DE NAVIO$/,
-    "capitan_de_navio",
-    "Capitán de Navío",
-    "horizontal",
-  ],
+  [/^CAPITAN DE NAVIO$/, "capitan_de_navio", "Capitán de Navío", "horizontal"],
   [
     /^CAPITAN DE FRAGATA$/,
     "capitan_de_fragata",
@@ -285,7 +280,12 @@ const cadetPatterns: [RegExp, string, string, RankInsignia["shape"]][] = [
     "Alumno Segundo Brigadier",
     "vertical",
   ],
-  [/^ALUMNOS? SUB ?BRIGADIER$/, "brigadier", "Alumno Sub-Brigadier", "vertical"],
+  [
+    /^ALUMNOS? SUB ?BRIGADIER$/,
+    "brigadier",
+    "Alumno Sub-Brigadier",
+    "vertical",
+  ],
   [/^ALUMNOS? BRIGADIER$/, "segundo_brigadier", "Alumno Brigadier", "vertical"],
   [
     /^ALUMNOS? (?:DISTIN?GUIDO|DIST) (?:DE )?(?:SEGUNDO|2DO|2)(?: ANO)?$/,
@@ -611,6 +611,213 @@ export function maskCedula(
   const prefix = nacionalidad === "E" ? "E-" : "V-";
   if (digits.length <= 4) return `${prefix}${digits}`;
   return `${prefix}••••${digits.slice(-4)}`;
+}
+
+/**
+ * Formatea una cédula enmascarada con separador de miles por puntos
+ * (por ejemplo `V-12.***.678`), conservando `maskCedula` para vistas compactas.
+ */
+export function maskCedulaDotted(
+  cedula: string | null | undefined,
+  nacionalidad?: string | null,
+): string {
+  const raw = cedula?.trim() ?? "";
+  if (!raw) return "";
+  const explicitPrefix = /^[Ee]-?/.test(raw)
+    ? "E-"
+    : /^[Vv]-?/.test(raw)
+      ? "V-"
+      : null;
+  const prefix = nacionalidad === "E" ? "E-" : (explicitPrefix ?? "V-");
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.length <= 3) return `${prefix}${digits}`;
+  if (digits.length <= 6) {
+    return `${prefix}${"*".repeat(digits.length - 3)}.${digits.slice(-3)}`;
+  }
+
+  const groups: string[] = [];
+  for (let end = digits.length; end > 0; end -= 3) {
+    const start = Math.max(0, end - 3);
+    groups.unshift(digits.slice(start, end));
+  }
+  const [first, ...rest] = groups;
+  const last = rest.pop();
+  const maskedMiddle = rest.map(() => "***");
+  return `${prefix}${[first, ...maskedMiddle, last].join(".")}`;
+}
+
+function normalizeRankForLookup(grado: string): string {
+  return restoreRankDe(
+    grado
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, " ")
+      .trim(),
+  );
+}
+
+const MILITARY_CATEGORY_RULES: ReadonlyArray<readonly [RegExp, string]> = [
+  [
+    /^(?:GENERAL EN JEFE|MAYOR GENERAL|GENERAL DE DIVISION|GENERAL DE BRIGADA|G J|M G|G D|G B)$/,
+    "Oficial General",
+  ],
+  [
+    /^(?:ALMIRANTE EN JEFE|ALMIRANTE|VICEALMIRANTE|CONTRALMIRANTE|A J|ALM|V A|C A)$/,
+    "Oficial Almirante",
+  ],
+  [
+    /^(?:CORONEL|TENIENTE CORONEL|MAYOR|CAPITAN DE NAVIO|CAPITAN DE FRAGATA|CAPITAN DE CORBETA|CNEL|TCNEL|MAY|C N|C F|C C)$/,
+    "Oficial Superior",
+  ],
+  [
+    /^(?:CAPITAN|PRIMER TENIENTE|TENIENTE|TENIENTE DE NAVIO|TENIENTE DE FRAGATA|TENIENTE DE CORBETA|CAP|1T|PTTE|TTE|T N|T F|T C)$/,
+    "Oficial Subalterno",
+  ],
+  [
+    /^(?:SARGENTO SUPERVISOR|SARGENTO AYUDANTE|SARGENTO MAYOR(?: DE (?:1RA|1ERA|PRIMERA|2DA|SEGUNDA|3RA|TERCERA))?|SARGENTO (?:PRIMERO|1RO|DE PRIMERA|SEGUNDO|2DO|DE SEGUNDA)|S S|S A|S M ?(?:1RA|2DA|3RA|1|2|3)?|SM[123]|S 1|S 2)$/,
+    "Tropa Profesional",
+  ],
+  [
+    /^(?:CABO (?:PRIMERO|1RO|SEGUNDO|2DO)|C 1|C 2|(?:INFANTE |MARINERO |POLICIA NAVAL )?DISTINGUIDO|DIST|INFANTE DE MARINA|POLICIA NAVAL|MARINERO|SOLDADO|TROPA ALISTADA)$/,
+    "Tropa Alistada",
+  ],
+];
+
+/**
+ * Deriva la categoría jerárquica institucional FANB a partir del grado.
+ */
+export function deriveMilitaryCategory(
+  grado: string | null | undefined,
+): string | null {
+  const clean = grado?.trim() ?? "";
+  if (!clean) return null;
+  const normalized = normalizeRankForLookup(clean);
+  if (!normalized) return null;
+
+  if (
+    cadetPatterns.some(([pattern]) => pattern.test(normalized)) ||
+    /^(?:ALF(?:ER[EZ])?|G ?M|BRIGADIER|CADETE|ALUMNO|ASPIRANTE)\b/.test(
+      normalized,
+    )
+  ) {
+    return "Cadete / Alumno";
+  }
+
+  const matched = MILITARY_CATEGORY_RULES.find(([pattern]) =>
+    pattern.test(normalized),
+  );
+  return matched ? matched[1] : null;
+}
+
+const SHORT_RANK_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^GENERAL EN JEFE$/, "G/J"],
+  [/^MAYOR GENERAL$/, "M/G"],
+  [/^GENERAL DE DIVISION$/, "G/D"],
+  [/^GENERAL DE BRIGADA$/, "G/B"],
+  [/^ALMIRANTE EN JEFE$/, "A/J"],
+  [/^VICEALMIRANTE$/, "V/A"],
+  [/^CONTRALMIRANTE$/, "C/A"],
+  [/^ALMIRANTE$/, "Alm."],
+  [/^CAPITAN DE NAVIO$/, "C/N"],
+  [/^CAPITAN DE FRAGATA$/, "C/F"],
+  [/^CAPITAN DE CORBETA$/, "C/C"],
+  [/^TENIENTE DE NAVIO$/, "T/N"],
+  [/^TENIENTE DE FRAGATA$/, "T/F"],
+  [/^TENIENTE DE CORBETA$/, "T/C"],
+  [/^TENIENTE CORONEL$/, "Tcnel."],
+  [/^CORONEL$/, "Cnel."],
+  [/^MAYOR$/, "May."],
+  [/^CAPITAN$/, "Cap."],
+  [/^PRIMER TENIENTE$/, "1T"],
+  [/^TENIENTE$/, "Tte."],
+  [/^SARGENTO SUPERVISOR$/, "S/S"],
+  [/^SARGENTO AYUDANTE$/, "S/A"],
+  [/^SARGENTO MAYOR DE (?:1RA|1ERA|PRIMERA)$/, "S/M 1ra"],
+  [/^SARGENTO MAYOR DE (?:2DA|SEGUNDA)$/, "S/M 2da"],
+  [/^SARGENTO MAYOR DE (?:3RA|TERCERA)$/, "S/M 3ra"],
+  [/^SARGENTO (?:PRIMERO|1RO|DE PRIMERA)$/, "S/1"],
+  [/^SARGENTO (?:SEGUNDO|2DO|DE SEGUNDA)$/, "S/2"],
+  [/^CABO (?:PRIMERO|1RO)$/, "C/1"],
+  [/^CABO (?:SEGUNDO|2DO)$/, "C/2"],
+  [/^ALFEREZ MAYOR$/, "Alf. May."],
+  [/^ALFEREZ AUXILIAR$/, "Alf. Aux."],
+  [/^ALFEREZ$/, "Alf."],
+  [/^GUARDIAMARINA MAYOR$/, "G/M May."],
+  [/^GUARDIAMARINA AUXILIAR$/, "G/M Aux."],
+  [/^GUARDIAMARINA$/, "G/M"],
+  [/^(?:INFANTE |MARINERO |POLICIA NAVAL )?DISTINGUIDO$/, "Dist."],
+];
+
+/**
+ * Devuelve la abreviatura institucional corta de un grado FANB
+ * (`G/J`, `Cnel.`, `1T`, `S/M 1ra`, etc.) o el texto original limpio si no aplica.
+ */
+export function formatGradoCorto(grado: string | null | undefined): string {
+  const clean = grado?.trim() ?? "";
+  if (!clean) return "";
+  const normalized = normalizeRankForLookup(clean);
+  const found = SHORT_RANK_PATTERNS.find(([pattern]) =>
+    pattern.test(normalized),
+  );
+  return found ? found[1] : clean;
+}
+
+const RANK_ABBREVIATIONS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^GENERAL EN JEFE$/, "G/J"],
+  [/^MAYOR GENERAL$/, "M/G"],
+  [/^GENERAL DE DIVISION$/, "G/D"],
+  [/^GENERAL DE BRIGADA$/, "G/B"],
+  [/^ALMIRANTE EN JEFE$/, "A/J"],
+  [/^VICEALMIRANTE$/, "V/A"],
+  [/^CONTRALMIRANTE$/, "C/A"],
+  [/^ALMIRANTE$/, "Alm."],
+  [/^CAPITAN DE NAVIO$/, "C/N"],
+  [/^CAPITAN DE FRAGATA$/, "C/F"],
+  [/^CAPITAN DE CORBETA$/, "C/C"],
+  [/^TENIENTE DE NAVIO$/, "T/N"],
+  [/^TENIENTE DE FRAGATA$/, "T/F"],
+  [/^TENIENTE DE CORBETA$/, "T/C"],
+  [/^TENIENTE CORONEL$/, "Tcnel."],
+  [/^CORONEL$/, "Cnel."],
+  [/^MAYOR$/, "May."],
+  [/^CAPITAN$/, "Cap."],
+  [/^PRIMER TENIENTE$/, "Ptte."],
+  [/^TENIENTE$/, "Tte."],
+  [/^SARGENTO SUPERVISOR$/, "S/S"],
+  [/^SARGENTO AYUDANTE$/, "S/A"],
+  [/^SARGENTO MAYOR DE (?:1RA|1ERA|PRIMERA)$/, "S/M1"],
+  [/^SARGENTO MAYOR DE (?:2DA|SEGUNDA)$/, "S/M2"],
+  [/^SARGENTO MAYOR DE (?:3RA|TERCERA)$/, "S/M3"],
+  [/^SARGENTO (?:PRIMERO|1RO|DE PRIMERA)$/, "S/1"],
+  [/^SARGENTO (?:SEGUNDO|2DO|DE SEGUNDA)$/, "S/2"],
+  [/^CABO (?:PRIMERO|1RO)$/, "C/1"],
+  [/^CABO (?:SEGUNDO|2DO)$/, "C/2"],
+];
+
+/**
+ * Abrevia el grado militar venezolano para encabezados y filas compactas.
+ * Si el texto ya viene abreviado o no coincide con un patrón conocido, lo
+ * devuelve limpio tal cual.
+ */
+export function abbreviateMilitaryRank(
+  grado: string | null | undefined,
+): string | null {
+  const clean = grado?.trim() ?? "";
+  if (!clean) return null;
+  const normalized = restoreRankDe(
+    clean
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, " ")
+      .trim(),
+  );
+  const found = RANK_ABBREVIATIONS.find(([pattern]) =>
+    pattern.test(normalized),
+  );
+  return found ? found[1] : clean;
 }
 
 export function normalizeCedulaInput(raw: string): string | null {

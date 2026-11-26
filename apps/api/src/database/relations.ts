@@ -8,6 +8,7 @@ import {
   commentTable,
   customFieldDefinitionTable,
   customFieldValueTable,
+  discursoBorradorTable,
   externalLinkTable,
   githubIntegrationTable,
   integrationTable,
@@ -428,6 +429,20 @@ export const customFieldValueTableRelations = relations(
     task: one(taskTable, {
       fields: [customFieldValueTable.taskId],
       references: [taskTable.id],
+    }),
+  }),
+);
+
+export const discursoBorradorTableRelations = relations(
+  discursoBorradorTable,
+  ({ one }) => ({
+    workspace: one(workspaceTable, {
+      fields: [discursoBorradorTable.workspaceId],
+      references: [workspaceTable.id],
+    }),
+    creator: one(userTable, {
+      fields: [discursoBorradorTable.createdBy],
+      references: [userTable.id],
     }),
   }),
 );

@@ -1,3 +1,4 @@
+import { BrandMark, TricolorBar } from "@/components/common/brand-mark";
 import {
   Card,
   CardContent,
@@ -14,25 +15,14 @@ type AuthLayoutProps = {
 
 export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
   return (
-    <div className="min-h-dvh w-full overflow-y-auto bg-background text-foreground flex flex-col items-center px-4 py-8 sm:py-12">
+    <div className="min-h-dvh w-full overflow-y-auto bg-background text-foreground flex flex-col items-center justify-center px-5 py-10">
       <div className="w-full max-w-sm space-y-5 my-auto">
-        <div className="flex items-center justify-center gap-2.5">
-          <img
-            src="/marca/sigefanb.webp"
-            alt="SIGEFANB"
-            className="h-7 w-auto object-contain dark:hidden"
-          />
-          <img
-            src="/marca/sigefanb-oscuro.png"
-            alt="SIGEFANB"
-            className="hidden h-7 w-auto object-contain dark:block"
-          />
-          <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/8 px-2.5 py-0.5 font-mono text-[11px] font-semibold uppercase text-primary">
-            AGENDA
-          </span>
+        <div className="flex flex-col items-center gap-2.5">
+          <BrandMark size="md" />
+          <TricolorBar className="w-12" />
         </div>
 
-        <Card>
+        <Card className="border-border/60 shadow-none">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">{title}</CardTitle>
             {subtitle ? <CardDescription>{subtitle}</CardDescription> : null}

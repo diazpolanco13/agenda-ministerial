@@ -46,7 +46,9 @@ import {
 import { prepareDatabaseStartup } from "./database/prepare-database-startup";
 import { waitForDatabase } from "./database/wait-for-database";
 import discordIntegration from "./discord-integration";
+import discurso from "./discurso";
 import { eventContext } from "./events";
+import executive from "./executive";
 import externalLink from "./external-link";
 import genericWebhookIntegration from "./generic-webhook-integration";
 import giteaIntegration, { handleGiteaWebhookRoute } from "./gitea-integration";
@@ -69,6 +71,7 @@ import notificationPreferences from "./notification-preferences";
 import oauth from "./oauth";
 import { createRoute, errorResponse, jsonResponse, z } from "./openapi";
 import { initializePlugins, integrationPlugins } from "./plugins";
+import plaud from "./plaud";
 import { migrateGitHubIntegration } from "./plugins/github/migration";
 import project from "./project";
 import { assertProjectAccess } from "./project-access/assert-project-access";
@@ -882,6 +885,9 @@ export function createApp() {
   const userApi = api.route("/user", user);
   const adminApi = api.route("/admin", admin);
   const sigefanbApi = api.route("/sigefanb", sigefanb);
+  const discursoApi = api.route("/discurso", discurso);
+  const plaudApi = api.route("/plaud", plaud);
+  const executiveApi = api.route("/executive", executive);
 
   app.route(
     "/",
@@ -1019,6 +1025,9 @@ export function createApp() {
     userApi,
     adminApi,
     sigefanbApi,
+    discursoApi,
+    plaudApi,
+    executiveApi,
     workflowRuleApi,
     workspaceApi,
     customFieldApi,
@@ -1163,6 +1172,9 @@ const {
   userApi,
   adminApi,
   sigefanbApi,
+  discursoApi,
+  plaudApi,
+  executiveApi,
   workflowRuleApi,
   workspaceApi,
   customFieldApi,
@@ -1213,6 +1225,9 @@ export type AppType =
   | typeof userApi
   | typeof adminApi
   | typeof sigefanbApi
+  | typeof discursoApi
+  | typeof plaudApi
+  | typeof executiveApi
   | typeof publicProjectApi
   | typeof invitationPublicApi
   | typeof oauthApi;

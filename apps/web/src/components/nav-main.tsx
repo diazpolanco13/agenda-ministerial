@@ -5,6 +5,7 @@ import {
   Inbox,
   type LucideIcon,
   Mail,
+  Mic,
   Users,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -63,6 +64,11 @@ export function NavMain() {
       count: assignedTasks?.total,
     },
     {
+      title: t("navigation:sidebar.fromSpeech"),
+      icon: Mic,
+      url: `${homeUrl}/discurso`,
+    },
+    {
       title: t("navigation:sidebar.members"),
       icon: Users,
       url: `${homeUrl}/members`,
@@ -81,27 +87,27 @@ export function NavMain() {
   }
 
   return (
-    <SidebarGroup className="gap-1 p-2">
+    <SidebarGroup className="gap-1 px-2.5 py-2">
       <SidebarGroupContent>
-        <SidebarMenu className="gap-0.5">
+        <SidebarMenu className="gap-1">
           {navItems.map((item) => (
             <SidebarMenuItem key={item.url}>
               <SidebarMenuButton
                 tooltip={item.title}
                 isActive={pathname === item.url}
                 size="default"
-                className="h-8 text-sm"
+                className="h-8.5 px-2.5 text-sm"
                 onClick={() => navigate({ to: item.url })}
               >
-                <item.icon aria-hidden="true" />
+                <item.icon className="stroke-[1.75]" aria-hidden="true" />
                 <span>{item.title}</span>
                 {item.count ? (
                   <span
                     className={cn(
-                      "ml-auto flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[11px] tabular-nums",
+                      "ml-auto flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] tabular-nums",
                       item.emphasizeCount
-                        ? "bg-foreground font-semibold text-background"
-                        : "font-medium text-muted-foreground",
+                        ? "bg-primary/12 font-medium text-primary"
+                        : "font-normal text-muted-foreground/80",
                     )}
                   >
                     {item.count > 99 ? "99+" : item.count}

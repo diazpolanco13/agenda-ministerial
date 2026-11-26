@@ -631,13 +631,14 @@ function RouteComponent() {
         }
       />
       <div className="flex h-full min-h-0 flex-col bg-background">
-        <div className="border-b border-border/80 px-3 py-2 print:hidden sm:px-4">
+        <div className="border-b border-border/60 px-3 py-2 print:hidden sm:px-4">
           <h1 className="sr-only">{t("tasks:gantt.title")}</h1>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
               <Button
                 variant="outline"
                 size="xs"
+                className="border-border/70"
                 disabled={!hasParents}
                 onClick={handleExpandAll}
               >
@@ -649,6 +650,7 @@ function RouteComponent() {
               <Button
                 variant="outline"
                 size="xs"
+                className="border-border/70"
                 disabled={!hasParents}
                 onClick={handleCollapseAll}
               >
@@ -887,22 +889,22 @@ function RouteComponent() {
             style={{ scrollPaddingLeft: `${scrollPaddingLeftRem}rem` }}
           >
             <div className="relative min-w-max touch-pan-x touch-pan-y">
-              <div className="sticky top-0 z-20 flex border-b border-border bg-background/95 backdrop-blur">
+              <div className="sticky top-0 z-20 flex border-b border-border/60 bg-background/95 backdrop-blur">
                 {showTaskRail ? (
                   <div
-                    className="sticky left-0 z-30 flex shrink-0 items-center border-r border-border bg-background text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                    className="sticky left-0 z-30 flex shrink-0 items-center border-r border-border/60 bg-background text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
                     style={{ width: `${taskColumnWidthRem}rem` }}
                   >
-                    <div className="w-11 shrink-0 border-r border-border/60 px-2 py-3 text-center">
+                    <div className="w-11 shrink-0 border-r border-border/45 px-2 py-2.5 text-center">
                       {t("tasks:gantt.colNumber")}
                     </div>
-                    <div className="min-w-0 flex-1 px-3 py-3">
+                    <div className="min-w-0 flex-1 px-3 py-2.5">
                       {t("tasks:gantt.colName")}
                     </div>
-                    <div className="hidden w-[9rem] shrink-0 border-l border-border/60 px-2.5 py-3 sm:block">
+                    <div className="hidden w-[9rem] shrink-0 border-l border-border/45 px-2.5 py-2.5 sm:block">
                       {t("tasks:gantt.colAssignee")}
                     </div>
-                    <div className="hidden w-[5rem] shrink-0 border-l border-border/60 px-2 py-3 text-center sm:block">
+                    <div className="hidden w-[5rem] shrink-0 border-l border-border/45 px-2 py-2.5 text-center sm:block">
                       {t("tasks:gantt.colDuration")}
                     </div>
                   </div>
@@ -1082,17 +1084,17 @@ function RouteComponent() {
                         key={`bg-line-${day.toISOString()}`}
                         className={cn(
                           "h-full min-h-0",
-                          activeZoom === "days" && "border-r border-border/60",
+                          activeZoom === "days" && "border-r border-border/40",
                           activeZoom === "weeks" &&
                             (isWeekBoundary
-                              ? "border-l border-border/70"
-                              : "border-r border-border/20"),
+                              ? "border-l border-border/50"
+                              : "border-r border-border/15"),
                           activeZoom === "months" &&
                             isMonthBoundary &&
-                            "border-l border-border/70",
+                            "border-l border-border/50",
                           activeZoom !== "months" &&
                             isWeekend(day) &&
-                            "bg-muted/25",
+                            "bg-muted/20",
                         )}
                       />
                     );
@@ -1132,7 +1134,7 @@ function RouteComponent() {
                       <div
                         key={task.id}
                         className={cn(
-                          "grid h-[44px] items-stretch border-b border-border/60",
+                          "grid h-[44px] items-stretch border-b border-border/45",
                           row.isSummary && "bg-muted/20",
                         )}
                         style={{
@@ -1142,8 +1144,8 @@ function RouteComponent() {
                         }}
                       >
                         {showTaskRail ? (
-                          <div className="sticky left-0 z-[11] flex h-full items-center border-r border-border bg-background">
-                            <div className="w-11 shrink-0 border-r border-border/50 px-1.5 text-center text-[11px] font-medium tabular-nums text-muted-foreground">
+                          <div className="sticky left-0 z-[11] flex h-full items-center border-r border-border/60 bg-background">
+                            <div className="w-11 shrink-0 border-r border-border/40 px-1.5 text-center text-[11px] font-medium tabular-nums text-muted-foreground">
                               {row.wbs}
                             </div>
 

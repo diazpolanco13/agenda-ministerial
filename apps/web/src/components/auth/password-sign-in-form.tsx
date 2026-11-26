@@ -1,6 +1,6 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { Link } from "@tanstack/react-router";
-import { ShieldCheck, User } from "lucide-react";
+import { User } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -170,9 +170,8 @@ export function PasswordSignInForm({
               <FormControl>
                 <IdentifierGroupInput
                   autoComplete="username"
-                  className="font-mono"
                   placeholder={t("auth:forms.identifierPlaceholder", {
-                    defaultValue: "V-12345678 o correo@ejemplo.com",
+                    defaultValue: "V-12345678 o correo",
                   })}
                   {...field}
                 />
@@ -214,11 +213,10 @@ export function PasswordSignInForm({
         <Button
           type="submit"
           size="lg"
-          className="mt-2 h-11 w-full"
+          className="mt-1 h-10 w-full font-medium"
           loading={isPending}
           disabled={disabled || captcha.pending}
         >
-          <ShieldCheck className="size-4" aria-hidden="true" />
           {t("auth:signIn.submitPassword")}
         </Button>
       </form>

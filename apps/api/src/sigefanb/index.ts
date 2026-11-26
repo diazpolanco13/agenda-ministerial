@@ -8,6 +8,7 @@ import {
   createRoute,
   errorResponse,
   jsonResponse,
+  pagingNumber,
   z,
 } from "../openapi";
 import { hasWorkspacePermission } from "../utils/require-workspace-permission";
@@ -21,6 +22,7 @@ import {
   enforceSigefanbPhotoRateLimit,
   enforceSigefanbRateLimit,
 } from "./rate-limit";
+import { buscarPersonalInteligente } from "./smart-search";
 
 const componenteSchema = z.enum(["EJB", "ARB", "AMB", "GNB", "MIL"]);
 
@@ -37,6 +39,13 @@ const sigefanbPersonalItemSchema = z
     fotoUrl: z.string(),
   })
   .openapi("SigefanbPersonalItem");
+
+const sigefanbSmartCandidateSchema = sigefanbPersonalItemSchema
+  .extend({
+    score: z.number(),
+    motivo: z.string(),
+  })
+  .openapi("SigefanbSmartCandidate");
 
 const provisionedUserSchema = z
   .object({
@@ -100,6 +109,36 @@ const buscarPersonalRoute = createRoute({
       z.array(sigefanbPersonalItemSchema),
     ),
     400: errorResponse("Término de búsqueda inválido"),
+    401: errorResponse("No autenticado"),
+    403: errorResponse("Se requiere sesión de usuario"),
+    429: errorResponse("Límite de consultas excedido"),
+    503: errorResponse("Servicio SIGEFANB temporalmente no disponible"),
+  },
+});
+
+const buscarPersonalInteligenteRoute = createRoute({
+  method: "get",
+  operationId: "buscarPersonalInteligenteSigefanb",
+  path: "/personal/inteligente",
+  tags: ["SIGEFANB"],
+  summary: "Búsqueda inteligente de personal militar en SIGEFANB",
+  description:
+    "Búsqueda difusa con apodos venezolanos, detección de grados, componentes FANB y tolerancia a errores ortográficos.",
+  middleware: [requireUserSession] as const,
+  request: {
+    query: z.object({
+      q: z.string().trim().min(2).max(120),
+      grado: z.string().trim().max(60).optional(),
+      componente: componenteSchema.optional(),
+      limit: pagingNumber(1, 25).optional(),
+    }),
+  },
+  responses: {
+    200: jsonResponse(
+      "Candidatos ordenados por relevancia",
+      z.array(sigefanbSmartCandidateSchema),
+    ),
+    400: errorResponse("Parámetros de búsqueda inválidos"),
     401: errorResponse("No autenticado"),
     403: errorResponse("Se requiere sesión de usuario"),
     429: errorResponse("Límite de consultas excedido"),
@@ -221,6 +260,39 @@ export const sigefanb = apiRouter()
 
     try {
       const items = await buscarPersonal(q);
+      return c.json(items, 200);
+    } catch (error) {
+      rethrowSigefanbError(error);
+    }
+  })
+  .openapi(buscarPersonalInteligenteRoute, async (c) => {
+    const userId = c.get("userId");
+    enforceSigefanbRateLimit(userId);
+
+    const { q, grado, componente, limit } = c.req.valid("query");
+    const audit = adminAuditRequest(c);
+    recordAuditNonBlocking({
+      actorUserId: audit.actorUserId,
+      action: "sigefanb.smart_search",
+      targetType: "sigefanb",
+      targetLabel: q,
+      metadata: {
+        query: q,
+        grado: grado ?? null,
+        componente: componente ?? null,
+        limit: limit ?? null,
+      },
+      ipAddress: audit.ipAddress,
+      userAgent: audit.userAgent,
+    });
+
+    try {
+      const items = await buscarPersonalInteligente({
+        q,
+        grado,
+        componente,
+        limit,
+      });
       return c.json(items, 200);
     } catch (error) {
       rethrowSigefanbError(error);

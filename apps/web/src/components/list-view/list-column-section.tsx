@@ -71,7 +71,7 @@ const ListColumnSection = memo(function ListColumnSection({
         showDropIndicator && "border-l-4 border-l-ring bg-accent/35",
       )}
     >
-      <div className="flex items-center justify-between py-2 px-4 bg-muted/60 border-b border-border/50">
+      <div className="flex items-center justify-between py-2 px-4 bg-muted/35 border-b border-border/50">
         <button
           type="button"
           onClick={() => {

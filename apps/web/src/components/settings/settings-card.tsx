@@ -13,8 +13,8 @@ export function SettingsCard({
   return (
     <div
       className={cn(
-        "divide-y divide-border overflow-hidden rounded-xl border bg-card",
-        tone === "danger" ? "border-destructive/20" : "border-border",
+        "divide-y divide-border/60 overflow-hidden rounded-xl border bg-card",
+        tone === "danger" ? "border-destructive/20" : "border-border/70",
         className,
       )}
       {...props}

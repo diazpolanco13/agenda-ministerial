@@ -35,7 +35,7 @@ export function SettingsShell({ children }: SettingsShellProps) {
         }
       >
         <SettingsSidebar nav={nav} onLeave={leave} />
-        <SidebarInset className="m-2 flex flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-background shadow-sm/5">
+        <SidebarInset className="m-0 md:m-2 flex flex-1 flex-col overflow-hidden md:rounded-xl md:border md:border-border/70 bg-background">
           <SettingsHeader breadcrumb={getSettingsBreadcrumb(nav, pathname)} />
           <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
         </SidebarInset>

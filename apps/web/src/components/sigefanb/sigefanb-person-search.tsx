@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ResponsableAvatar } from "@/components/responsable-avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  buscarPersonalSigefanb,
+  buscarPersonalInteligenteSigefanb,
   type SigefanbPersonalItem,
 } from "@/fetchers/sigefanb";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -17,6 +17,20 @@ type SigefanbPersonSearchProps = {
   disabled?: boolean;
   autoFocus?: boolean;
 };
+
+type ComponentFilterValue = "ALL" | "EJB" | "ARB" | "AMB" | "GNB" | "MIL";
+
+const COMPONENT_FILTERS: readonly {
+  value: ComponentFilterValue;
+  label: string;
+}[] = [
+  { value: "ALL", label: "Todos" },
+  { value: "EJB", label: "EJB" },
+  { value: "ARB", label: "ARB" },
+  { value: "AMB", label: "AMB" },
+  { value: "GNB", label: "GNB" },
+  { value: "MIL", label: "MIL" },
+];
 
 const MIN_QUERY_LENGTH = 3;
 
@@ -36,12 +50,17 @@ export function SigefanbPersonSearch({
   autoFocus = true,
 }: SigefanbPersonSearchProps) {
   const [query, setQuery] = useState("");
+  const [componenteFilter, setComponenteFilter] =
+    useState<ComponentFilterValue>("ALL");
+
   const trimmedQuery = query.trim();
   const debouncedQuery = useDebouncedValue(trimmedQuery, 300);
 
   const isWaitingDebounce =
     trimmedQuery.length >= MIN_QUERY_LENGTH && trimmedQuery !== debouncedQuery;
   const canSearch = debouncedQuery.length >= MIN_QUERY_LENGTH;
+  const activeComponente =
+    componenteFilter === "ALL" ? undefined : componenteFilter;
 
   const {
     data: results = [],
@@ -49,8 +68,16 @@ export function SigefanbPersonSearch({
     isError,
     error,
   } = useQuery({
-    queryKey: ["sigefanb-personal-search", debouncedQuery],
-    queryFn: () => buscarPersonalSigefanb(debouncedQuery),
+    queryKey: [
+      "sigefanb-personal-smart-search",
+      debouncedQuery,
+      activeComponente ?? "ALL",
+    ],
+    queryFn: () =>
+      buscarPersonalInteligenteSigefanb({
+        q: debouncedQuery,
+        componente: activeComponente,
+      }),
     enabled: canSearch,
     staleTime: 60_000,
     retry: false,
@@ -69,17 +96,44 @@ export function SigefanbPersonSearch({
           disabled={disabled}
           onChange={(event) => setQuery(event.target.value)}
           aria-label="Buscar personal en SIGEFANB"
-          placeholder="Buscar por cédula o nombre (mín. 3 caracteres)..."
+          placeholder="Nombre, grado, apodo o cédula (mín. 3 car.)..."
           className="h-full min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
         />
+      </div>
+
+      <div
+        role="group"
+        aria-label="Filtrar por componente FANB"
+        className="flex flex-wrap items-center gap-1 border-border/60 border-b bg-muted/30 px-2 py-1.5"
+      >
+        {COMPONENT_FILTERS.map((filter) => {
+          const isActive = componenteFilter === filter.value;
+          return (
+            <button
+              key={filter.value}
+              type="button"
+              disabled={disabled}
+              aria-pressed={isActive}
+              onClick={() => setComponenteFilter(filter.value)}
+              className={cn(
+                "rounded px-1.5 py-0.5 font-medium text-[11px] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                isActive
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
       </div>
 
       {trimmedQuery.length < MIN_QUERY_LENGTH ? (
         <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground">
           <UserSearch className="size-5 opacity-70" />
           <p className="text-xs">
-            Ingresa al menos 3 caracteres de la cédula o nombre para buscar en
-            SIGEFANB.
+            Escribe al menos 3 caracteres (nombre, apodo, grado o cédula) para
+            buscar en SIGEFANB.
           </p>
         </div>
       ) : showLoading ? (
@@ -94,7 +148,8 @@ export function SigefanbPersonSearch({
         </div>
       ) : results.length === 0 ? (
         <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-          No se encontró personal para «{debouncedQuery}».
+          No se encontró personal para «{debouncedQuery}»
+          {activeComponente ? ` en ${activeComponente}` : ""}.
         </div>
       ) : (
         <div className="max-h-72 overflow-y-auto p-1">
@@ -103,6 +158,7 @@ export function SigefanbPersonSearch({
               item.insignia ??
               rankInsignia(item.grado, item.componente, item.unidad)?.src ??
               null;
+            const matchPercent = Math.round(item.score * 100);
 
             return (
               <button
@@ -111,7 +167,7 @@ export function SigefanbPersonSearch({
                 disabled={disabled}
                 onClick={() => onSelect(item)}
                 className={cn(
-                  "flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors outline-none",
+                  "flex w-full items-start gap-2.5 rounded-md px-2 py-2 text-left transition-colors outline-none",
                   "hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none disabled:opacity-60",
                 )}
               >
@@ -154,6 +210,12 @@ export function SigefanbPersonSearch({
                     {item.unidad ? `${item.unidad} · ` : ""}
                     {maskCedula(item.cedula, item.nacionalidad)}
                   </p>
+                  <div className="flex items-center justify-between gap-2 pt-0.5 text-[10px] text-muted-foreground/85">
+                    <span className="truncate">{item.motivo}</span>
+                    <span className="shrink-0 tabular-nums font-medium">
+                      {matchPercent}%
+                    </span>
+                  </div>
                 </div>
               </button>
             );

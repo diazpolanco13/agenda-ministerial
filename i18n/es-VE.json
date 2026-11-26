@@ -171,7 +171,7 @@
       "subtitle": {
         "emailOrProvider": "Usa tu correo electrónico o una cuenta conectada.",
         "email": "Ingresa tu correo electrónico y te enviaremos un código para iniciar sesión.",
-        "password": "Usa la cuenta institucional asignada por el Ministerio de la Defensa.",
+        "password": "Accede con tu cédula o correo institucional.",
         "passwordOrProvider": "Usa tu contraseña o una cuenta conectada.",
         "providers": "Elige cómo quieres iniciar sesión.",
         "sso": "Aquí el inicio de sesión lo gestiona tu organización."
@@ -185,8 +185,8 @@
         "use_a_permanent_email_address_disposable_addresses_cannot_create_accounts_": "Usa una dirección de correo permanente. Con direcciones desechables no se pueden crear cuentas."
       },
       "instanceStatusError": "No se ha podido contactar con el servidor. Vuelve a intentarlo en un momento.",
-      "heading": "Inicia sesión",
-      "submitPassword": "Entrar a AGENDA",
+      "heading": "Inicia sesión en AGENDA",
+      "submitPassword": "Entrar",
       "invitation": {
         "title": "{{inviterName}} te ha invitado a {{workspaceName}}",
         "fallbackTitle": "Has recibido una invitación",
@@ -237,7 +237,7 @@
       "captchaFailed": "La comprobación de seguridad no se ha cargado, así que el inicio de sesión está en pausa. Revisa tu conexión o tu bloqueador de contenido.",
       "captchaRetry": "Reintentar",
       "identifier": "Cédula o usuario",
-      "identifierPlaceholder": "V-12345678 o usuario@mppd.gob.ve",
+      "identifierPlaceholder": "V-12345678 o correo",
       "identifierRequired": "Ingresa tu cédula o correo electrónico.",
       "invalidIdentifier": "Ingresa una cédula válida (ej. V-12345678) o un correo electrónico."
     },
@@ -581,7 +581,8 @@
       "feature2Body": "Control de acceso por roles institucionales, resguardo de confidencialidad y bitácora verificable de cada actuación.",
       "verifiedAccess": "Acceso verificado",
       "restrictedNotice": "Uso oficial restringido · No indexable",
-      "auditNotice": "Todo acceso, registro de acuerdos y consulta de documentos queda registrado en la bitácora institucional del despacho."
+      "auditNotice": "Todo acceso, registro de acuerdos y consulta de documentos queda registrado en la bitácora institucional del despacho.",
+      "footerLine": "Ministerio del Poder Popular para la Defensa · Uso oficial"
     }
   },
   "settings": {
@@ -2942,7 +2943,8 @@
       "home": "Inicio",
       "inbox": "Bandeja de entrada",
       "invitePeople": "Invitar personas",
-      "myTasks": "Mis tareas"
+      "myTasks": "Mis tareas",
+      "fromSpeech": "Desde discurso"
     },
     "projectList": {
       "viewProject": "Ver Proyecto",
@@ -2976,7 +2978,12 @@
       "signedOutSuccess": "Sesión cerrada correctamente",
       "signOutFailed": "Error al cerrar sesión",
       "unnamedUser": "Usuario",
+      "myProfile": "Mi perfil",
       "settings": "Ajustes",
+      "theme": "Tema",
+      "themeLight": "Claro",
+      "themeDark": "Oscuro",
+      "themeSystem": "Sistema",
       "signingOut": "Cerrando sesión...",
       "logOut": "Cerrar sesión"
     },

@@ -121,7 +121,10 @@ export function UserDirectoryRow({
   ];
 
   return (
-    <div role="row" className="flex items-center gap-4 px-4 py-3">
+    <div
+      role="row"
+      className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30"
+    >
       <div role="cell" className="flex min-w-0 flex-1 items-center gap-3">
         <ResponsableAvatar
           userId={user.id}
@@ -155,7 +158,7 @@ export function UserDirectoryRow({
           </span>
           <div className="mt-1.5 flex flex-wrap items-center gap-2 sm:hidden">
             {cedulaLabel ? (
-              <span className="font-mono text-[11px] text-muted-foreground">
+              <span className="text-[11px] tabular-nums text-muted-foreground">
                 {cedulaLabel}
               </span>
             ) : null}
@@ -168,7 +171,7 @@ export function UserDirectoryRow({
       <div
         role="cell"
         className={cn(
-          "hidden shrink-0 md:flex items-center font-mono text-xs text-muted-foreground",
+          "hidden shrink-0 md:flex items-center text-xs tabular-nums text-muted-foreground",
           USER_DIRECTORY_COLUMNS.cedula,
         )}
       >

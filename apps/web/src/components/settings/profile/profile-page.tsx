@@ -1,38 +1,72 @@
-import { useTranslation } from "react-i18next";
+import { Link } from "@tanstack/react-router";
+import { ArrowRightIcon } from "lucide-react";
+import { ChangePasswordSettings } from "@/components/account/change-password/change-password-settings";
+import { ActiveSessionsSettings } from "@/components/account/sessions/active-sessions-settings";
 import PageTitle from "@/components/page-title";
 import useAuth from "@/components/providers/auth-provider/hooks/use-auth";
-import { AutosaveNote } from "@/components/settings/autosave-note";
-import { DeleteAccountSection } from "@/components/settings/profile/delete-account-section";
-import { NtfyNotificationsPlaceholder } from "@/components/settings/profile/ntfy-notifications-placeholder";
-import { ProfileDetailsSection } from "@/components/settings/profile/profile-details-section";
-import { SigefanbProfileCard } from "@/components/settings/profile/sigefanb-profile-card";
-import { useProfileNameAutosave } from "@/components/settings/profile/use-profile-name-autosave";
+import { AgendaPreferencesSection } from "@/components/settings/profile/agenda-preferences-section";
+import { MilitaryProfileHeader } from "@/components/settings/profile/military-profile-header";
+import { isDemoUserEmail } from "@/components/settings/profile/military-profile-helpers";
+import { SigefanbReadonlySection } from "@/components/settings/profile/sigefanb-readonly-section";
 import { SettingsPage } from "@/components/settings/settings-page";
-import useManagedProfileFields from "@/hooks/queries/user/use-managed-profile-fields";
+import { Button } from "@/components/ui/button";
+import { useCurrentUser } from "@/hooks/queries/user/use-current-user";
 
 export function ProfilePage() {
-  const { t } = useTranslation();
-  const { user, refetchUser } = useAuth();
-  const form = useProfileNameAutosave({ name: user?.name, refetchUser });
-  const managedFields = useManagedProfileFields();
+  const { user } = useAuth();
+  const { data: currentUser, isLoading } = useCurrentUser();
+
+  const resolvedUser = currentUser ?? user ?? null;
+  const militar = currentUser?.militar ?? user?.militar ?? null;
+  const isDemo = !militar && isDemoUserEmail(resolvedUser?.email);
 
   return (
     <>
-      <PageTitle title={t("settings:informationPage.pageTitle")} />
+      <PageTitle title="Ficha Militar" />
       <SettingsPage
-        title={t("settings:informationPage.title")}
-        description={t("settings:informationPage.subtitle")}
-        actions={<AutosaveNote />}
+        title="Ficha Militar"
+        description="Identidad institucional sincronizada desde SIGEFANB, preferencias de AGENDA y seguridad de acceso."
       >
-        <SigefanbProfileCard />
-        <ProfileDetailsSection
-          form={form}
-          user={user ?? undefined}
-          refetchUser={refetchUser}
-          managedFields={managedFields}
+        <MilitaryProfileHeader
+          user={resolvedUser}
+          militar={militar}
+          isDemo={isDemo}
+          isLoading={isLoading && !resolvedUser}
         />
-        <NtfyNotificationsPlaceholder />
-        <DeleteAccountSection email={user?.email} />
+
+        <SigefanbReadonlySection
+          militar={militar}
+          userRole={resolvedUser?.role}
+          isDemo={isDemo}
+          isLoading={isLoading && !currentUser}
+        />
+
+        <AgendaPreferencesSection />
+
+        <div className="space-y-6 pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-6">
+            <div>
+              <h2 className="text-base font-semibold tracking-tight text-foreground">
+                Seguridad
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Contraseña de acceso y sesiones activas de tu cuenta.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              render={<Link to="/dashboard/settings/account/security" />}
+            >
+              Vista completa de seguridad
+              <ArrowRightIcon className="size-3.5" aria-hidden="true" />
+            </Button>
+          </div>
+
+          <ChangePasswordSettings />
+          <ActiveSessionsSettings />
+        </div>
       </SettingsPage>
     </>
   );

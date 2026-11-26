@@ -219,7 +219,7 @@ function SignIn() {
             onSelect={(provider) => void signInWithProvider(provider)}
           />
         ) : null}
-        <div className="flex flex-col gap-2 pt-8 text-muted-foreground text-sm">
+        <div className="flex flex-col gap-2 pt-4 text-center text-xs text-muted-foreground/85">
           <SignInFooterLine
             footer={getSignInFooter(config, emailMethod, providers)}
             invitationId={invitationId}
