@@ -10,6 +10,7 @@ import {
   revokedSessionsSchema,
 } from "../sessions/response";
 import { listActiveSessions } from "../sessions/list-active-sessions";
+import { adminAuditRequest } from "../admin/audit/admin-audit-request";
 import { boundedRequestBody } from "../utils/bounded-request-body";
 import { requireUserSession } from "../utils/require-user-session";
 import { MAX_AVATAR_BYTES, MAX_AVATAR_REQUEST_BYTES } from "./avatar";
@@ -17,6 +18,7 @@ import deleteAvatar from "./controllers/delete-avatar";
 import getCurrentUser from "./controllers/get-current-user";
 import revokeOwnSession from "./controllers/revoke-own-session";
 import saveAvatar from "./controllers/save-avatar";
+import syncSigefanbProfile from "./controllers/sync-sigefanb-profile";
 import {
   requireRemovableAvatar,
   requireUnmanagedAvatar,
@@ -39,6 +41,25 @@ const getCurrentUserRoute = createRoute({
     200: jsonResponse("Current user", currentUserSchema),
     401: errorResponse("Unauthorized"),
     404: errorResponse("User not found"),
+  },
+});
+
+const syncSigefanbProfileRoute = createRoute({
+  method: "post",
+  operationId: "syncSigefanbProfile",
+  path: "/me/sincronizar-sigefanb",
+  tags: ["User"],
+  summary: "Synchronize current user profile with SIGEFANB",
+  description:
+    "Queries SIGEFANB using the user's linked cedula and updates military rank, component, unit, and full name.",
+  middleware: [requireUserSession] as const,
+  responses: {
+    200: jsonResponse("Synchronized user", currentUserSchema),
+    400: errorResponse("User has no linked cedula"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Authenticated with an API key"),
+    404: errorResponse("Active SIGEFANB record not found"),
+    503: errorResponse("SIGEFANB service unavailable"),
   },
 });
 
@@ -132,6 +153,16 @@ const revokeSessionRoute = createRoute({
 const user = apiRouter()
   .openapi(getCurrentUserRoute, async (c) =>
     c.json(await getCurrentUser(c.get("userId")), 200),
+  )
+  .openapi(syncSigefanbProfileRoute, async (c) =>
+    c.json(
+      await syncSigefanbProfile(
+        c.get("userId"),
+        c.get("userEmail"),
+        adminAuditRequest(c),
+      ),
+      200,
+    ),
   )
   .openapi(uploadAvatarRoute, async (c) => {
     const { contentType, data } = c.req.valid("json");

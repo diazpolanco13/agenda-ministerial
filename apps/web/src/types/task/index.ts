@@ -40,6 +40,10 @@ type Task = {
   assigneeId: string | null;
   assigneeName: string | null;
   assigneeImage?: string | null;
+  assigneeCedula?: string | null;
+  assigneeGrado?: string | null;
+  assigneeComponente?: string | null;
+  assigneeUnidad?: string | null;
   projectId: string;
   columnId?: string | null;
   isSubtask?: boolean;

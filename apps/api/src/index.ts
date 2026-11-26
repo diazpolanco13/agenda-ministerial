@@ -20,6 +20,7 @@ import { HTTPException } from "hono/http-exception";
 import activity from "./activity";
 import admin from "./admin";
 import { auth } from "./auth";
+import authIdentificador from "./auth-identificador";
 import { forwardAuthRequest } from "./utils/forward-auth-request";
 import { organizationRoutes } from "./auth-openapi";
 import {
@@ -74,6 +75,8 @@ import { assertProjectAccess } from "./project-access/assert-project-access";
 import { getPublicProject } from "./project/controllers/get-public-project";
 import { initializeScheduler, shutdownScheduler } from "./scheduler";
 import search from "./search";
+import sigefanb from "./sigefanb";
+import { closeSigefanbPools } from "./sigefanb/pools";
 import slackIntegration from "./slack-integration";
 import { getPrivateObject } from "./storage/s3";
 import task from "./task";
@@ -106,6 +109,7 @@ import { migrateSessionColumn } from "./utils/migrate-session-column";
 import { migrateWorkspaceUserEmail } from "./utils/migrate-workspace-user-email";
 import { normalizeApiServerUrl } from "./utils/openapi-spec";
 import { seedDefaultWorkspaceRoles } from "./utils/seed-default-workspace-roles";
+import { seedInstitutionalRoles } from "./utils/seed-institutional-roles";
 import { drainSignInEmails } from "./utils/sign-in-email-tasks";
 import { validateWorkspaceAccess } from "./utils/validate-workspace-access";
 import { requireWorkspacePermission } from "./utils/require-workspace-permission";
@@ -773,6 +777,8 @@ export function createApp() {
     },
   );
 
+  api.route("/auth", authIdentificador);
+
   api.on(
     ["POST", "GET", "PUT", "PATCH", "DELETE"],
     "/auth/*",
@@ -875,6 +881,7 @@ export function createApp() {
   const importApi = api.route("/import", importRoutes);
   const userApi = api.route("/user", user);
   const adminApi = api.route("/admin", admin);
+  const sigefanbApi = api.route("/sigefanb", sigefanb);
 
   app.route(
     "/",
@@ -1011,6 +1018,7 @@ export function createApp() {
     timeEntryApi,
     userApi,
     adminApi,
+    sigefanbApi,
     workflowRuleApi,
     workspaceApi,
     customFieldApi,
@@ -1050,6 +1058,7 @@ export async function runStartupTasks() {
   await migrateGitHubIntegration();
   await migrateColumns();
   await seedDefaultWorkspaceRoles();
+  await seedInstitutionalRoles();
 
   initializePlugins();
   // AGENDA: el API de desarrollo (Tailscale) comparte BD con producción; crons solo en producción.
@@ -1103,6 +1112,7 @@ export async function startServer(
       drainPasswordResetDeliveries(),
       drainSignInEmails(),
       stopActiveImports(),
+      closeSigefanbPools(),
     ]);
     if (!signInEmailsDrained) {
       console.warn("Timed out waiting for pending sign-in emails");
@@ -1152,6 +1162,7 @@ const {
   timeEntryApi,
   userApi,
   adminApi,
+  sigefanbApi,
   workflowRuleApi,
   workspaceApi,
   customFieldApi,
@@ -1201,6 +1212,7 @@ export type AppType =
   | typeof importApi
   | typeof userApi
   | typeof adminApi
+  | typeof sigefanbApi
   | typeof publicProjectApi
   | typeof invitationPublicApi
   | typeof oauthApi;

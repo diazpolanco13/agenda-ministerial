@@ -30,11 +30,24 @@ function roleCondition(role: string, isAdmin: SQL) {
 function filters({ search, status, role, emailVerified }: ListUsersInput) {
   const term = search?.trim() ?? "";
   const pattern = `%${escapeLikePattern(term)}%`;
+  const digitsTerm = term
+    .replace(/^[VvEe]-?/, "")
+    .replace(/\./g, "")
+    .trim();
+  const cedulaPattern = `%${escapeLikePattern(digitsTerm || term)}%`;
   const active = notBannedCondition();
   const isAdmin = sql`coalesce(${instanceAdminRoleSql(userTable.role)}, false)`;
   return and(
     term
-      ? or(ilike(userTable.name, pattern), ilike(userTable.email, pattern))
+      ? or(
+          ilike(userTable.name, pattern),
+          ilike(userTable.email, pattern),
+          sql`EXISTS (
+            SELECT 1 FROM "militar_perfil" mp
+            WHERE mp."user_id" = "user"."id"
+              AND (mp."cedula" ILIKE ${pattern} OR mp."cedula" ILIKE ${cedulaPattern})
+          )`,
+        )
       : undefined,
     status === undefined
       ? undefined

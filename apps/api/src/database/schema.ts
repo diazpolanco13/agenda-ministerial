@@ -1660,3 +1660,32 @@ export const dataMigrationTable = pgTable("data_migration", {
     .default(utcNow)
     .notNull(),
 });
+
+// Perfil militar vinculado desde SIGEFANB (tabla aditiva, 1:1 opcional con user).
+export const militarPerfilTable = pgTable(
+  "militar_perfil",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => userTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    cedula: text("cedula").notNull(),
+    nacionalidad: text("nacionalidad"),
+    grado: text("grado"),
+    componente: text("componente"),
+    unidad: text("unidad"),
+    sexo: text("sexo"),
+    pendiente: boolean("pendiente").default(false).notNull(),
+    sincronizadoEn: timestamp("sincronizado_en", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" })
+      .default(utcNow)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+      .default(utcNow)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [uniqueIndex("militar_perfil_cedula_idx").on(table.cedula)],
+);

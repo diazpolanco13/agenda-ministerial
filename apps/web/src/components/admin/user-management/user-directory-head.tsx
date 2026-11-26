@@ -14,6 +14,26 @@ export function UserDirectoryHead() {
       </div>
       <div
         role="columnheader"
+        className={cn(
+          HEADER_CLASS,
+          "hidden md:flex",
+          USER_DIRECTORY_COLUMNS.cedula,
+        )}
+      >
+        Cédula
+      </div>
+      <div
+        role="columnheader"
+        className={cn(
+          HEADER_CLASS,
+          "hidden lg:flex",
+          USER_DIRECTORY_COLUMNS.grado,
+        )}
+      >
+        Grado
+      </div>
+      <div
+        role="columnheader"
         className={cn(HEADER_CLASS, USER_DIRECTORY_COLUMNS.role)}
       >
         {t("settings:adminUsers.columns.role")}
@@ -26,15 +46,13 @@ export function UserDirectoryHead() {
       </div>
       <div
         role="columnheader"
-        className={cn(HEADER_CLASS, USER_DIRECTORY_COLUMNS.lastActive)}
+        className={cn(
+          HEADER_CLASS,
+          "hidden xl:flex",
+          USER_DIRECTORY_COLUMNS.lastActive,
+        )}
       >
         {t("settings:adminUsers.columns.lastActive")}
-      </div>
-      <div
-        role="columnheader"
-        className={cn(HEADER_CLASS, USER_DIRECTORY_COLUMNS.joined)}
-      >
-        {t("settings:adminUsers.columns.joined")}
       </div>
       <div
         role="columnheader"

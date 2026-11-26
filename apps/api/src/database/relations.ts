@@ -13,6 +13,7 @@ import {
   integrationTable,
   invitationTable,
   labelTable,
+  militarPerfilTable,
   notificationTable,
   projectTable,
   sessionTable,
@@ -48,7 +49,18 @@ export const userTableRelations = relations(userTable, ({ many, one }) => ({
   notificationWorkspaceRules: many(userNotificationWorkspaceRuleTable),
   sentInvitations: many(invitationTable),
   apikeys: many(apikeyTable),
+  militarPerfil: one(militarPerfilTable),
 }));
+
+export const militarPerfilTableRelations = relations(
+  militarPerfilTable,
+  ({ one }) => ({
+    user: one(userTable, {
+      fields: [militarPerfilTable.userId],
+      references: [userTable.id],
+    }),
+  }),
+);
 
 export const sessionTableRelations = relations(sessionTable, ({ one }) => ({
   user: one(userTable, {

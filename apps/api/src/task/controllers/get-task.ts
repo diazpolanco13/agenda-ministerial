@@ -7,11 +7,13 @@ import { and, eq, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import db from "../../database";
 import {
+  militarPerfilTable,
   taskTable,
   userTable,
   projectTable,
   taskRelationTable,
 } from "../../database/schema";
+import { isRestrictedResponsable } from "../../utils/is-restricted-responsable";
 
 async function getTask(taskId: string, board = false, userId?: string) {
   const task = await db
@@ -37,17 +39,36 @@ async function getTask(taskId: string, board = false, userId?: string) {
       userId: taskTable.userId,
       assigneeName: userTable.name,
       assigneeId: userTable.id,
+      assigneeCedula: militarPerfilTable.cedula,
+      assigneeGrado: militarPerfilTable.grado,
+      assigneeComponente: militarPerfilTable.componente,
+      assigneeUnidad: militarPerfilTable.unidad,
       projectId: taskTable.projectId,
       workspaceId: sql<string>`(select ${projectTable.workspaceId} from ${projectTable} where ${projectTable.id} = ${taskTable.projectId})`,
     })
     .from(taskTable)
     .leftJoin(userTable, eq(taskTable.userId, userTable.id))
+    .leftJoin(
+      militarPerfilTable,
+      eq(taskTable.userId, militarPerfilTable.userId),
+    )
     .where(eq(taskTable.id, taskId))
     .limit(1);
 
   if (!task.length || !task[0]) {
     throw new HTTPException(404, {
       message: "Task not found",
+    });
+  }
+
+  if (
+    userId &&
+    task[0].workspaceId &&
+    (await isRestrictedResponsable(userId, task[0].workspaceId)) &&
+    task[0].userId !== userId
+  ) {
+    throw new HTTPException(403, {
+      message: "No tienes acceso a esta tarea",
     });
   }
 

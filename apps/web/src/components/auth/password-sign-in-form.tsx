@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod/v4";
+import useAuth from "@/components/providers/auth-provider/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,7 +21,9 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { getApiUrl } from "@/fetchers/get-api-url";
 import { authClient } from "@/lib/auth-client";
+import { normalizeCedulaInput } from "@/lib/military-assets";
 import { toast } from "@/lib/toast";
 import { AuthCaptcha } from "./auth-captcha";
 import {
@@ -31,9 +34,7 @@ import {
 import { PasswordInput } from "./password-input";
 import type { AuthCaptcha as AuthCaptchaState } from "./use-auth-captcha";
 
-// TODO fase 5: soportar inicio de sesión por cédula de identidad además de correo electrónico
-
-type PasswordSignInValues = { email: string; password: string };
+type PasswordSignInValues = { identificador: string; password: string };
 
 type PasswordSignInFormProps = {
   defaultEmail?: string;
@@ -44,13 +45,13 @@ type PasswordSignInFormProps = {
 };
 
 // Reenvía id y atributos ARIA de FormControl directo al <input> real dentro de InputGroup.
-function EmailGroupInput(props: Omit<InputProps, "type">) {
+function IdentifierGroupInput(props: Omit<InputProps, "type">) {
   return (
     <InputGroup>
       <InputGroupAddon align="inline-start">
         <User className="size-4 text-muted-foreground" aria-hidden="true" />
       </InputGroupAddon>
-      <InputGroupInput size="lg" type="email" {...props} />
+      <InputGroupInput size="lg" type="text" {...props} />
     </InputGroup>
   );
 }
@@ -63,38 +64,80 @@ export function PasswordSignInForm({
   onSuccess,
 }: PasswordSignInFormProps) {
   const { t } = useTranslation();
+  const { refetchUser } = useAuth();
   const [isPending, setIsPending] = useState(false);
   const schema = useMemo(
     () =>
       z.object({
-        email: z.email(t("auth:forms.invalidEmail")),
+        identificador: z
+          .string()
+          .trim()
+          .min(
+            1,
+            t("auth:forms.identifierRequired", {
+              defaultValue: "Ingresa tu cédula o correo electrónico",
+            }),
+          )
+          .refine(
+            (value) => {
+              if (value.includes("@")) {
+                return z.email().safeParse(value).success;
+              }
+              return normalizeCedulaInput(value) !== null;
+            },
+            t("auth:forms.invalidIdentifier", {
+              defaultValue:
+                "Ingresa una cédula válida (ej. V-12345678) o un correo electrónico",
+            }),
+          ),
         password: z.string().min(1, t("auth:forms.passwordRequired")),
       }),
     [t],
   );
   const form = useForm<PasswordSignInValues>({
     resolver: standardSchemaResolver(schema),
-    defaultValues: { email: defaultEmail ?? "", password: "" },
+    defaultValues: { identificador: defaultEmail ?? "", password: "" },
   });
 
-  const onSubmit = async ({ email, password }: PasswordSignInValues) => {
+  const onSubmit = async ({
+    identificador,
+    password,
+  }: PasswordSignInValues) => {
     if (captcha.pending) return;
     setIsPending(true);
     try {
-      const result = await authClient.signIn.email(
-        { email, password },
-        { headers: captcha.headers },
-      );
-      if (result.error) {
+      const response = await fetch(getApiUrl("/auth/ingresar"), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...captcha.headers,
+        },
+        body: JSON.stringify({
+          identificador: identificador.trim(),
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = (await response.json().catch(() => null)) as {
+          code?: string;
+          message?: string;
+        } | null;
         toast.error(
-          result.error.code === "EMAIL_NOT_VERIFIED"
+          errorBody?.code === "EMAIL_NOT_VERIFIED"
             ? t("auth:signInForm.emailNotVerified")
-            : result.error.message || t("auth:signInForm.failedSignIn"),
+            : errorBody?.message || t("auth:signInForm.failedSignIn"),
         );
         setIsPending(false);
         captcha.reset();
         return;
       }
+
+      if (typeof authClient.getSession === "function") {
+        await authClient.getSession({ query: { disableCookieCache: true } });
+      }
+      await refetchUser();
       onSuccess();
     } catch (error) {
       toast.error(
@@ -116,17 +159,21 @@ export function PasswordSignInForm({
       >
         <FormField
           control={form.control}
-          name="email"
+          name="identificador"
           render={({ field }) => (
             <FormItem className={authFieldClassName}>
               <FormLabel className={authLabelClassName}>
-                {t("auth:forms.email")}
+                {t("auth:forms.identifier", {
+                  defaultValue: "Cédula o correo electrónico",
+                })}
               </FormLabel>
               <FormControl>
-                <EmailGroupInput
+                <IdentifierGroupInput
                   autoComplete="username"
                   className="font-mono"
-                  placeholder={t("auth:forms.emailPlaceholder")}
+                  placeholder={t("auth:forms.identifierPlaceholder", {
+                    defaultValue: "V-12345678 o correo@ejemplo.com",
+                  })}
                   {...field}
                 />
               </FormControl>

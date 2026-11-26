@@ -54,6 +54,7 @@ import {
 import {
   requireBulkTaskEntitlement,
   requireBulkTaskPermission,
+  requireOwnTaskIfResponsable,
   requireTaskAssigneePermission,
   requireTaskRecurrencePermission,
 } from "./controllers/require-task-permission";
@@ -396,6 +397,7 @@ const moveTaskRoute = createRoute({
   middleware: [
     workspaceAccess.fromTask(),
     requireWorkspacePermission({ task: ["update"] }),
+    requireOwnTaskIfResponsable,
     requireEntitlement,
   ] as const,
   request: {
@@ -430,6 +432,7 @@ const updateTaskRoute = createRoute({
   middleware: [
     workspaceAccess.fromTask(),
     requireWorkspacePermission({ task: ["update"] }),
+    requireOwnTaskIfResponsable,
     requireTaskAssigneePermission,
     requireEntitlement,
   ] as const,
@@ -533,6 +536,7 @@ const updateTaskStatusRoute = createRoute({
   middleware: [
     workspaceAccess.fromTask(),
     requireWorkspacePermission({ task: ["update"] }),
+    requireOwnTaskIfResponsable,
     requireEntitlement,
   ] as const,
   request: {
@@ -562,6 +566,7 @@ const updateTaskPriorityRoute = createRoute({
   middleware: [
     workspaceAccess.fromTask(),
     requireWorkspacePermission({ task: ["update"] }),
+    requireOwnTaskIfResponsable,
     requireEntitlement,
   ] as const,
   request: {
@@ -623,6 +628,7 @@ const updateTaskDueDateRoute = createRoute({
   middleware: [
     workspaceAccess.fromTask(),
     requireWorkspacePermission({ task: ["update"] }),
+    requireOwnTaskIfResponsable,
     requireEntitlement,
   ] as const,
   request: {
@@ -685,6 +691,7 @@ const updateTaskTitleRoute = createRoute({
   middleware: [
     workspaceAccess.fromTask(),
     requireWorkspacePermission({ task: ["update"] }),
+    requireOwnTaskIfResponsable,
     requireEntitlement,
   ] as const,
   request: {
@@ -777,6 +784,7 @@ const updateTaskDescriptionRoute = createRoute({
   middleware: [
     workspaceAccess.fromTask(),
     requireWorkspacePermission({ task: ["update"] }),
+    requireOwnTaskIfResponsable,
     requireEntitlement,
   ] as const,
   request: {

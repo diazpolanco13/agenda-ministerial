@@ -62,6 +62,10 @@ export const taskWithAssigneeSchema = taskSchema
       .optional(),
     assigneeName: z.string().nullable(),
     assigneeId: z.string().nullable(),
+    assigneeCedula: z.string().nullable().optional(),
+    assigneeGrado: z.string().nullable().optional(),
+    assigneeComponente: z.string().nullable().optional(),
+    assigneeUnidad: z.string().nullable().optional(),
   })
   .openapi("TaskWithAssignee");
 
@@ -116,6 +120,10 @@ export const boardTaskSchema = z
     assigneeName: z.string().nullable(),
     assigneeId: z.string().nullable(),
     assigneeImage: z.string().nullable(),
+    assigneeCedula: z.string().nullable().optional(),
+    assigneeGrado: z.string().nullable().optional(),
+    assigneeComponente: z.string().nullable().optional(),
+    assigneeUnidad: z.string().nullable().optional(),
     projectId: z.string(),
     isSubtask: z.boolean().optional(),
     subtaskCounts: z
@@ -311,6 +319,10 @@ export const assignedTasksSchema = z
           projectName: z.string(),
           projectSlug: z.string(),
           projectIcon: z.string().nullable(),
+          assigneeCedula: z.string().nullable().optional(),
+          assigneeGrado: z.string().nullable().optional(),
+          assigneeComponente: z.string().nullable().optional(),
+          assigneeUnidad: z.string().nullable().optional(),
           labels: z.array(taskLabelSchema),
         })
         .openapi("AssignedTask"),

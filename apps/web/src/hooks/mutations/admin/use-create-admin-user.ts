@@ -19,17 +19,23 @@ function useCreateAdminUser() {
 
   return useMutation({
     mutationFn: createAdminUser,
-    onSuccess: ({ user, passwordSetupEmail }) => {
-      const message = t(CREATED_TOAST_KEYS[passwordSetupEmail], {
-        email: user.email,
-      });
-      if (
-        passwordSetupEmail === "sent" ||
-        passwordSetupEmail === "not_needed"
-      ) {
-        toast.success(message, { icon: UserPlusIcon });
+    onSuccess: ({ user, passwordSetupEmail, temporaryPassword }) => {
+      if (temporaryPassword) {
+        toast.success(`Usuario ${user.name} creado con contraseña temporal`, {
+          icon: UserPlusIcon,
+        });
       } else {
-        toast.warning(message);
+        const message = t(CREATED_TOAST_KEYS[passwordSetupEmail], {
+          email: user.email,
+        });
+        if (
+          passwordSetupEmail === "sent" ||
+          passwordSetupEmail === "not_needed"
+        ) {
+          toast.success(message, { icon: UserPlusIcon });
+        } else {
+          toast.warning(message);
+        }
       }
       queryClient.invalidateQueries({ queryKey: ADMIN_USERS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ADMIN_ROLES_QUERY_KEY });

@@ -66,7 +66,12 @@ import {
 import { useGetTasks } from "@/hooks/queries/task/use-get-tasks";
 import useGetProjectTaskRelations from "@/hooks/queries/task-relation/use-get-project-task-relations";
 import { useGetActiveWorkspaceUsers } from "@/hooks/queries/workspace-users/use-get-active-workspace-users";
+import useGetProjectMembers from "@/hooks/queries/workspace-users/use-get-project-members";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  indexMilitaryProfiles,
+  resolvePersonMilitary,
+} from "@/hooks/use-responsable-foto";
 import {
   type AgendaColorSwatch,
   getAssigneeColor,
@@ -137,6 +142,10 @@ function RouteComponent() {
   const { data: project } = useGetTasks(projectId);
   const { data: relationsData } = useGetProjectTaskRelations(projectId);
   const { data: workspaceUsersData } = useGetActiveWorkspaceUsers(workspaceId);
+  const { data: projectMembers } = useGetProjectMembers({
+    workspaceId,
+    projectId,
+  });
   const weekStartsOn = useUserPreferencesStore((state) => state.weekStartsOn);
   const view = useProjectTaskView({
     project,
@@ -201,6 +210,11 @@ function RouteComponent() {
     setIsTaskRailOpen(false);
   }, [isMobile]);
 
+  const militaryByUserId = useMemo(
+    () => indexMilitaryProfiles(projectMembers),
+    [projectMembers],
+  );
+
   const memberByUserId = useMemo(() => {
     const map = new Map<
       string,
@@ -245,14 +259,22 @@ function RouteComponent() {
 
       const start = parsedStart <= parsedEnd ? parsedStart : parsedEnd;
       const end = parsedEnd >= parsedStart ? parsedEnd : parsedStart;
-      const member = task.assigneeId
-        ? memberByUserId.get(task.assigneeId)
+      const resolvedUserId = task.userId ?? task.assigneeId ?? null;
+      const member = resolvedUserId
+        ? memberByUserId.get(resolvedUserId)
         : undefined;
+      const military = resolvePersonMilitary(resolvedUserId, militaryByUserId, [
+        task,
+      ]);
 
       items.push({
         ...task,
         assigneeName: task.assigneeName ?? member?.name ?? null,
         assigneeImage: task.assigneeImage ?? member?.image ?? null,
+        assigneeCedula: military.cedula ?? null,
+        assigneeGrado: military.grado ?? null,
+        assigneeComponente: military.componente ?? null,
+        assigneeUnidad: military.unidad ?? null,
         scheduleStart: start,
         scheduleEnd: end,
       });
@@ -261,7 +283,7 @@ function RouteComponent() {
       (left, right) =>
         left.scheduleStart.getTime() - right.scheduleStart.getTime(),
     );
-  }, [allTasks, memberByUserId]);
+  }, [allTasks, memberByUserId, militaryByUserId]);
 
   const scheduledTasks = useMemo(() => {
     const visibleIds = new Set(
@@ -1206,9 +1228,14 @@ function RouteComponent() {
                                 <>
                                   <ResponsableAvatar
                                     size="xs"
-                                    userId={task.assigneeId}
+                                    userId={task.userId ?? task.assigneeId}
                                     name={task.assigneeName}
                                     image={task.assigneeImage}
+                                    cedula={task.assigneeCedula}
+                                    grado={task.assigneeGrado}
+                                    componente={task.assigneeComponente}
+                                    unidad={task.assigneeUnidad}
+                                    showHoverCard
                                     assigned
                                   />
                                   <span className="truncate text-xs text-foreground/85">
@@ -1257,9 +1284,13 @@ function RouteComponent() {
                             swatch={swatch}
                             scheduleStart={row.scheduleStart}
                             scheduleEnd={row.scheduleEnd}
-                            assigneeId={task.assigneeId}
+                            assigneeId={task.userId ?? task.assigneeId}
                             assigneeName={task.assigneeName}
                             assigneeImage={task.assigneeImage}
+                            assigneeCedula={task.assigneeCedula}
+                            assigneeGrado={task.assigneeGrado}
+                            assigneeComponente={task.assigneeComponente}
+                            assigneeUnidad={task.assigneeUnidad}
                             onOpenTask={() =>
                               navigate({
                                 to: ".",

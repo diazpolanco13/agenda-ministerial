@@ -18,8 +18,10 @@ import {
 } from "@kaneo/email";
 import {
   ac,
+  CUSTOM_INSTITUTIONAL_ROLES,
   DEFAULT_ROLE_NAMES,
   defaultRolePayloads,
+  INSTITUTIONAL_WORKSPACE_ROLE_PERMISSIONS,
   owner,
 } from "@kaneo/permissions";
 import bcrypt from "bcryptjs";
@@ -596,7 +598,7 @@ export const auth = betterAuth({
               );
             const taken = new Set(existing.map((r) => r.role));
             const now = new Date();
-            const rows = DEFAULT_ROLE_NAMES.filter(
+            const defaultRows = DEFAULT_ROLE_NAMES.filter(
               (name) => !taken.has(name),
             ).map((name) => ({
               workspaceId: organization.id,
@@ -605,6 +607,18 @@ export const auth = betterAuth({
               createdAt: now,
               updatedAt: now,
             }));
+            const institutionalRows = CUSTOM_INSTITUTIONAL_ROLES.filter(
+              (name) => !taken.has(name),
+            ).map((name) => ({
+              workspaceId: organization.id,
+              role: name,
+              permission: JSON.stringify(
+                INSTITUTIONAL_WORKSPACE_ROLE_PERMISSIONS[name],
+              ),
+              createdAt: now,
+              updatedAt: now,
+            }));
+            const rows = [...defaultRows, ...institutionalRows];
             if (rows.length > 0) {
               await db.insert(schema.workspaceRoleTable).values(rows);
             }

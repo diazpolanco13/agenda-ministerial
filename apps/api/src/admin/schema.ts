@@ -90,17 +90,28 @@ const instanceRoleName = z.string().min(1).max(64).openapi({
     "Instance role: `admin` administers the instance, `user` has no instance permissions, or the name of a custom role. Only administrators can assign `admin`, and nobody can assign a role with permissions they don't have.",
 });
 
-export const createAdminUserBody = z.object({
-  name: z.string().trim().min(1).max(200),
-  email: z.email().max(254).openapi({
-    description:
-      "The new user's email address. They sign in with it and receive their password link there.",
-  }),
-  role: instanceRoleName.optional().openapi({
-    description:
-      "Instance role, as for updates. Defaults to the instance's default role for new users.",
-  }),
-});
+export const createAdminUserBody = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    email: z.email().max(254).optional().openapi({
+      description:
+        "The new user's email address. They sign in with it and receive their password link there.",
+    }),
+    role: instanceRoleName.optional().openapi({
+      description:
+        "Instance role, as for updates. Defaults to the instance's default role for new users.",
+    }),
+    cedula: z.string().trim().min(5).max(20).optional(),
+    nacionalidad: z.string().trim().max(4).optional(),
+    grado: z.string().trim().max(120).optional(),
+    componente: z.string().trim().max(40).optional(),
+    unidad: z.string().trim().max(300).optional(),
+    generarContrasenaTemporal: z.boolean().optional(),
+    workspaceId: z.string().min(1).optional(),
+  })
+  .refine((body) => Boolean(body.email?.trim() || body.cedula?.trim()), {
+    message: "Debe indicar correo electrónico o cédula de identidad.",
+  });
 
 export const updateAdminUserBody = z
   .object({

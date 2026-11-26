@@ -1,13 +1,16 @@
 import type { OptionMenuItem } from "@/components/common/option-menu/option-menu-item";
 import { UnassignedAvatar } from "@/components/common/unassigned-avatar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getInitials } from "@/lib/get-initials";
+import { ResponsableAvatar } from "@/components/responsable-avatar";
 
 type AssignableMember = {
   id: string;
   name?: string | null;
   email?: string | null;
   image?: string | null;
+  cedula?: string | null;
+  grado?: string | null;
+  componente?: string | null;
+  unidad?: string | null;
 };
 
 export function assigneeMenuOptions(
@@ -25,13 +28,19 @@ export function assigneeMenuOptions(
     ...members.map((member) => ({
       value: member.id,
       label: member.name || member.email || "",
+      hint: member.grado || undefined,
       icon: (
-        <Avatar className="size-4">
-          <AvatarImage src={member.image ?? ""} alt="" />
-          <AvatarFallback className="text-[8px]">
-            {getInitials(member.name)}
-          </AvatarFallback>
-        </Avatar>
+        <ResponsableAvatar
+          size="xs"
+          userId={member.id}
+          name={member.name}
+          image={member.image}
+          cedula={member.cedula}
+          grado={member.grado}
+          componente={member.componente}
+          unidad={member.unidad}
+          className="size-4 text-[8px]"
+        />
       ),
       selected: member.id === current,
     })),

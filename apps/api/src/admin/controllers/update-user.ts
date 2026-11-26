@@ -1,7 +1,9 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { isInstitutionalRole } from "@kaneo/permissions";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import db from "../../database";
-import { userTable } from "../../database/schema";
+import { userTable, workspaceUserTable } from "../../database/schema";
 import { ApiError } from "../../errors/api-error";
+import { isOwnerRole } from "../../project-access/is-owner-role";
 import getManagedProfile from "../../user/controllers/get-managed-profile";
 import {
   changesManagedProfile,
@@ -100,6 +102,24 @@ async function updateUser(input: UpdateUserInput, audit: AdminAuditRequest) {
 
     if (Object.keys(update).length > 0) {
       await tx.update(userTable).set(update).where(eq(userTable.id, userId));
+      if (update.role !== undefined && isInstitutionalRole(update.role)) {
+        const memberships = await tx
+          .select({
+            id: workspaceUserTable.id,
+            role: workspaceUserTable.role,
+          })
+          .from(workspaceUserTable)
+          .where(eq(workspaceUserTable.userId, userId));
+        const nonOwnerIds = memberships
+          .filter((member) => !isOwnerRole(member.role))
+          .map((member) => member.id);
+        if (nonOwnerIds.length > 0) {
+          await tx
+            .update(workspaceUserTable)
+            .set({ role: update.role })
+            .where(inArray(workspaceUserTable.id, nonOwnerIds));
+        }
+      }
       await recordUserUpdate(target, update, audit, tx);
     }
     return readAdminUser(userId, tx);

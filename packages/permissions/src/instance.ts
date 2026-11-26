@@ -35,7 +35,7 @@ export const BUILT_IN_INSTANCE_ROLES = ["admin", "user"] as const;
 export type BuiltInInstanceRole = (typeof BUILT_IN_INSTANCE_ROLES)[number];
 
 /** Custom role names are lowercase slugs so they fit a comma-separated list. */
-export const INSTANCE_ROLE_NAME_PATTERN = /^[a-z][a-z0-9-]{1,31}$/;
+export const INSTANCE_ROLE_NAME_PATTERN = /^[a-z][a-z0-9_-]{1,31}$/;
 
 export function isInstancePermission(
   value: unknown,

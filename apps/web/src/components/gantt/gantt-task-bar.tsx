@@ -49,6 +49,10 @@ type GanttTaskBarProps = {
   assigneeId?: string | null;
   assigneeName?: string | null;
   assigneeImage?: string | null;
+  assigneeCedula?: string | null;
+  assigneeGrado?: string | null;
+  assigneeComponente?: string | null;
+  assigneeUnidad?: string | null;
   onOpenTask: () => void;
 };
 
@@ -92,6 +96,10 @@ export function GanttTaskBar({
   assigneeId,
   assigneeName,
   assigneeImage,
+  assigneeCedula,
+  assigneeGrado,
+  assigneeComponente,
+  assigneeUnidad,
   onOpenTask,
 }: GanttTaskBarProps) {
   const { t } = useTranslation();
@@ -329,6 +337,11 @@ export function GanttTaskBar({
   const resolvedAssigneeId = assigneeId ?? task.assigneeId;
   const resolvedAssigneeName = assigneeName ?? task.assigneeName;
   const resolvedAssigneeImage = assigneeImage ?? task.assigneeImage ?? null;
+  const resolvedAssigneeCedula = assigneeCedula ?? task.assigneeCedula ?? null;
+  const resolvedAssigneeGrado = assigneeGrado ?? task.assigneeGrado ?? null;
+  const resolvedAssigneeComponente =
+    assigneeComponente ?? task.assigneeComponente ?? null;
+  const resolvedAssigneeUnidad = assigneeUnidad ?? task.assigneeUnidad ?? null;
   const hasAssignee = Boolean(resolvedAssigneeId || resolvedAssigneeName);
 
   const colorStyle = {
@@ -444,6 +457,10 @@ export function GanttTaskBar({
               userId={resolvedAssigneeId}
               name={resolvedAssigneeName}
               image={resolvedAssigneeImage}
+              cedula={resolvedAssigneeCedula}
+              grado={resolvedAssigneeGrado}
+              componente={resolvedAssigneeComponente}
+              unidad={resolvedAssigneeUnidad}
               assigned={hasAssignee}
             />
             <span className="text-[11px] text-muted-foreground/50">|</span>
@@ -549,6 +566,10 @@ export function GanttTaskBar({
             userId={resolvedAssigneeId}
             name={resolvedAssigneeName}
             image={resolvedAssigneeImage}
+            cedula={resolvedAssigneeCedula}
+            grado={resolvedAssigneeGrado}
+            componente={resolvedAssigneeComponente}
+            unidad={resolvedAssigneeUnidad}
             assigned={hasAssignee}
           />
           <span className="text-[11px] text-muted-foreground/50">|</span>

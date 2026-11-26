@@ -23,9 +23,12 @@ describe("instance permissions", () => {
     expect(parseInstanceRoles(null)).toEqual([]);
   });
 
-  it.each(["support", "help-desk", "ops2"])("accepts the name %s", (name) => {
-    expect(INSTANCE_ROLE_NAME_PATTERN.test(name)).toBe(true);
-  });
+  it.each(["support", "help-desk", "jefe_despacho", "ops2"])(
+    "accepts the name %s",
+    (name) => {
+      expect(INSTANCE_ROLE_NAME_PATTERN.test(name)).toBe(true);
+    },
+  );
 
   it.each(["a", "Support", "2ops", "help desk", "a,b", "-x"])(
     "rejects the name %s",

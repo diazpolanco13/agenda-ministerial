@@ -1,7 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import db from "../../database";
-import { userTable, workspaceUserTable } from "../../database/schema";
+import {
+  militarPerfilTable,
+  userTable,
+  workspaceUserTable,
+} from "../../database/schema";
 import { assertProjectAccess } from "../../project-access/assert-project-access";
 import { findWorkspaceProjectIds } from "../../project-access/find-workspace-project-ids";
 import { projectAccessCondition } from "../../project-access/project-access-condition";
@@ -28,9 +32,16 @@ async function getWorkspaceMembers(request: {
       email: userTable.email,
       image: userTable.image,
       role: workspaceUserTable.role,
+      cedula: militarPerfilTable.cedula,
+      nacionalidad: militarPerfilTable.nacionalidad,
+      grado: militarPerfilTable.grado,
+      componente: militarPerfilTable.componente,
+      unidad: militarPerfilTable.unidad,
+      pendiente: militarPerfilTable.pendiente,
     })
     .from(workspaceUserTable)
     .innerJoin(userTable, eq(workspaceUserTable.userId, userTable.id))
+    .leftJoin(militarPerfilTable, eq(userTable.id, militarPerfilTable.userId))
     .where(
       and(
         eq(workspaceUserTable.workspaceId, workspaceId),

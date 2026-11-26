@@ -19,6 +19,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import CircularProgress from "@/components/ui/circular-progress";
 import { useGetActiveWorkspaceUsers } from "@/hooks/queries/workspace-users/use-get-active-workspace-users";
+import useGetProjectMembers from "@/hooks/queries/workspace-users/use-get-project-members";
+import {
+  indexMilitaryProfiles,
+  resolvePersonMilitary,
+} from "@/hooks/use-responsable-foto";
 import { getPriorityColor, getStatusColor } from "@/lib/agenda-palette";
 import { cn } from "@/lib/cn";
 import { isTaskCompleted } from "@/lib/due-date-status";
@@ -51,6 +56,14 @@ export function ProjectDashboardView({
 }: ProjectDashboardViewProps) {
   const { t } = useTranslation();
   const { data: workspaceUsers } = useGetActiveWorkspaceUsers(workspaceId);
+  const { data: projectMembers } = useGetProjectMembers({
+    workspaceId,
+    projectId: project?.id ?? "",
+  });
+  const militaryByUserId = useMemo(
+    () => indexMilitaryProfiles(projectMembers),
+    [projectMembers],
+  );
   const members = useMemo(
     () => (workspaceUsers?.members ?? []) as WorkspaceMemberEntry[],
     [workspaceUsers?.members],
@@ -412,41 +425,54 @@ export function ProjectDashboardView({
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 pb-5">
-                {assigneeBreakdown.map((item) => (
-                  <div
-                    key={item.person.key}
-                    className="flex items-center gap-3"
-                  >
-                    <ResponsableAvatar
-                      userId={item.person.userId}
-                      name={item.person.name}
-                      image={item.person.image}
-                      assigned={item.person.isAssigned}
-                      size="sm"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                        <span className="truncate font-medium text-foreground">
-                          {item.person.name}
-                        </span>
-                        <span className="shrink-0 text-muted-foreground tabular-nums">
-                          {item.completed}/{item.total}
-                        </span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted/50">
-                        <div
-                          className="flex h-full overflow-hidden rounded-full bg-primary/30"
-                          style={{ width: `${item.barPct}%` }}
-                        >
+                {assigneeBreakdown.map((item) => {
+                  const military = resolvePersonMilitary(
+                    item.person.userId,
+                    militaryByUserId,
+                    item.tasks,
+                  );
+                  return (
+                    <div
+                      key={item.person.key}
+                      className="flex items-center gap-3"
+                    >
+                      <ResponsableAvatar
+                        userId={item.person.userId}
+                        name={item.person.name}
+                        image={item.person.image}
+                        cedula={military.cedula}
+                        nacionalidad={military.nacionalidad}
+                        grado={military.grado}
+                        componente={military.componente}
+                        unidad={military.unidad}
+                        showHoverCard
+                        assigned={item.person.isAssigned}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                          <span className="truncate font-medium text-foreground">
+                            {item.person.name}
+                          </span>
+                          <span className="shrink-0 text-muted-foreground tabular-nums">
+                            {item.completed}/{item.total}
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-muted/50">
                           <div
-                            className="h-full bg-primary"
-                            style={{ width: `${item.completedPctOfBar}%` }}
-                          />
+                            className="flex h-full overflow-hidden rounded-full bg-primary/30"
+                            style={{ width: `${item.barPct}%` }}
+                          >
+                            <div
+                              className="h-full bg-primary"
+                              style={{ width: `${item.completedPctOfBar}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
 
@@ -483,6 +509,11 @@ export function ProjectDashboardView({
                             count: item.diffDays,
                           });
 
+                    const deadlineMilitary = resolvePersonMilitary(
+                      item.assigneeId,
+                      militaryByUserId,
+                      [item.task],
+                    );
                     return (
                       <button
                         key={item.task.id}
@@ -495,6 +526,12 @@ export function ProjectDashboardView({
                             userId={item.assigneeId}
                             name={item.assigneeName}
                             image={item.assigneeImage}
+                            cedula={deadlineMilitary.cedula}
+                            nacionalidad={deadlineMilitary.nacionalidad}
+                            grado={deadlineMilitary.grado}
+                            componente={deadlineMilitary.componente}
+                            unidad={deadlineMilitary.unidad}
+                            showHoverCard
                             assigned={Boolean(item.assigneeId)}
                             size="xs"
                           />

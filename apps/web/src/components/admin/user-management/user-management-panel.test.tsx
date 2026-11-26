@@ -82,7 +82,14 @@ const { credentialMocks } = vi.hoisted(() => ({
     sendVerification: vi.fn(),
     markEmailVerified: vi.fn(),
     createUser: vi.fn(),
+    generateTemporaryPassword: vi.fn(),
   },
+}));
+vi.mock("@/hooks/mutations/admin/use-generate-temporary-password", () => ({
+  default: () => ({
+    mutateAsync: credentialMocks.generateTemporaryPassword,
+    isPending: false,
+  }),
 }));
 vi.mock("@/hooks/mutations/admin/use-send-admin-user-password-reset", () => ({
   default: () => ({
@@ -144,6 +151,13 @@ function user(overrides: Partial<AdminUser> = {}): AdminUser {
     banExpires: null,
     lastActiveAt: null,
     signInMethods: ["credential"],
+    cedula: null,
+    nacionalidad: null,
+    grado: null,
+    componente: null,
+    unidad: null,
+    pendiente: null,
+    sincronizadoEn: null,
     ...overrides,
   };
 }
@@ -227,6 +241,13 @@ beforeEach(() => {
     mock.mockReset();
     mock.mockResolvedValue(undefined);
   }
+  credentialMocks.createUser.mockResolvedValue({
+    user: user(),
+    passwordSetupEmail: "sent",
+  });
+  credentialMocks.generateTemporaryPassword.mockResolvedValue({
+    temporaryPassword: "TempPassword12!",
+  });
   configMock.data = { hasSmtp: true, disableLoginForm: false };
 });
 
@@ -686,5 +707,57 @@ describe("UserManagementPanel", () => {
         role: "user",
       }),
     );
+  });
+
+  it("displays institutional role labels and pending status", () => {
+    useAdminUsersMock.mockReturnValue(
+      success(1, [
+        user({
+          role: "jefe_despacho",
+          cedula: "12345678",
+          nacionalidad: "V",
+          grado: "Coronel",
+          pendiente: true,
+        }),
+      ]),
+    );
+    render(<UserManagementPanel />);
+
+    expect(screen.getAllByText("Jefe de Despacho").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("settings:adminUsers.status.pending").length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("V-12345678").length).toBeGreaterThan(0);
+    expect(screen.getByText("Coronel")).toBeTruthy();
+  });
+
+  it("generates a temporary password after confirmation and shows it once", async () => {
+    vi.useRealTimers();
+    useAdminUsersMock.mockReturnValue(success(1));
+    render(<UserManagementPanel />);
+
+    openRowMenu();
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "settings:adminUsers.actions.generateTemporaryPassword",
+      }),
+    );
+    expect(credentialMocks.generateTemporaryPassword).not.toHaveBeenCalled();
+
+    const confirm = await screen.findByRole("alertdialog");
+    fireEvent.click(
+      within(confirm).getByRole("button", {
+        name: "settings:adminUsers.confirm.generateTemporaryPassword.action",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(credentialMocks.generateTemporaryPassword).toHaveBeenCalledWith(
+        "user-1",
+      ),
+    );
+    expect(
+      (await screen.findByTestId("temporary-password-value")).textContent,
+    ).toBe("TempPassword12!");
   });
 });

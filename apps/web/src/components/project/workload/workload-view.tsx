@@ -31,6 +31,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useGetActiveWorkspaceUsers } from "@/hooks/queries/workspace-users/use-get-active-workspace-users";
+import useGetProjectMembers from "@/hooks/queries/workspace-users/use-get-project-members";
+import {
+  indexMilitaryProfiles,
+  resolvePersonMilitary,
+} from "@/hooks/use-responsable-foto";
 import { getStatusColor } from "@/lib/agenda-palette";
 import { cn } from "@/lib/cn";
 import { formatDateShort } from "@/lib/format";
@@ -87,8 +92,17 @@ export function WorkloadView({
   const { t } = useTranslation();
   const weekStartsOn = useUserPreferencesStore((state) => state.weekStartsOn);
   const { data: workspaceUsers } = useGetActiveWorkspaceUsers(workspaceId);
+  const { data: projectMembers } = useGetProjectMembers({
+    workspaceId,
+    projectId: project?.id ?? "",
+  });
   const [capacity, setCapacity] = useState<number>(4);
   const [weekOffset, setWeekOffset] = useState<number>(0);
+
+  const militaryByUserId = useMemo(
+    () => indexMilitaryProfiles(projectMembers),
+    [projectMembers],
+  );
 
   const members = useMemo(
     () => (workspaceUsers?.members ?? []) as WorkspaceMemberEntry[],
@@ -293,147 +307,161 @@ export function WorkloadView({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={row.person.key}
-                  className="border-border/60 border-b transition-colors hover:bg-muted/20"
-                >
-                  <td className="sticky left-0 z-10 border-border/80 border-r bg-background px-4 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <ResponsableAvatar
-                        userId={row.person.userId}
-                        name={row.person.name}
-                        image={row.person.image}
-                        assigned={row.person.isAssigned}
-                        size="sm"
-                      />
-                      <div className="min-w-0">
-                        <div className="truncate font-medium text-sm text-foreground">
-                          {row.person.name}
-                        </div>
-                        {row.person.subtitle ? (
-                          <div className="truncate text-[11px] text-muted-foreground">
-                            {row.person.subtitle}
+              {rows.map((row) => {
+                const military = resolvePersonMilitary(
+                  row.person.userId,
+                  militaryByUserId,
+                  row.tasks,
+                );
+                return (
+                  <tr
+                    key={row.person.key}
+                    className="border-border/60 border-b transition-colors hover:bg-muted/20"
+                  >
+                    <td className="sticky left-0 z-10 border-border/80 border-r bg-background px-4 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <ResponsableAvatar
+                          userId={row.person.userId}
+                          name={row.person.name}
+                          image={row.person.image}
+                          cedula={military.cedula}
+                          nacionalidad={military.nacionalidad}
+                          grado={military.grado}
+                          componente={military.componente}
+                          unidad={military.unidad}
+                          showHoverCard
+                          assigned={row.person.isAssigned}
+                          size="sm"
+                        />
+                        <div className="min-w-0">
+                          <div className="truncate font-medium text-sm text-foreground">
+                            {row.person.name}
                           </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </td>
-
-                  {weeks.map((week, weekIndex) => {
-                    const cellTasks: Task[] = row.byWeek[weekIndex] ?? [];
-                    const count = cellTasks.length;
-                    return (
-                      <td
-                        key={week.key}
-                        className={cn(
-                          "border-border/50 border-r p-1.5 text-center",
-                          week.isCurrent && "bg-primary/4",
-                        )}
-                      >
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              aria-label={`${row.person.name} (${week.label}): ${count}`}
-                              className={cn(
-                                "inline-flex h-8 w-full items-center justify-center rounded-md border text-xs transition-colors tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                                getCellTone(count, capacity),
-                              )}
-                            >
-                              {count > 0 ? count : "–"}
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent align="center" className="w-80 p-2">
-                            <div className="mb-2 flex items-center justify-between gap-2 border-border/70 border-b px-1 pb-1.5">
-                              <div className="min-w-0">
-                                <p className="truncate font-semibold text-xs text-foreground">
-                                  {t("tasks:workload.weekTasksTitle")}
-                                </p>
-                                <p className="truncate text-[11px] text-muted-foreground">
-                                  {row.person.name} · {week.label}
-                                </p>
-                              </div>
-                              <Badge variant="outline" size="sm">
-                                {count}
-                              </Badge>
+                          {row.person.subtitle ? (
+                            <div className="truncate text-[11px] text-muted-foreground">
+                              {row.person.subtitle}
                             </div>
-                            {cellTasks.length === 0 ? (
-                              <p className="px-1 py-3 text-center text-xs text-muted-foreground">
-                                {t("tasks:workload.noTasksInWeek")}
-                              </p>
-                            ) : (
-                              <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
-                                {cellTasks.map((task) => {
-                                  const statusSwatch = getStatusColor(
-                                    task.status,
-                                  );
-                                  const overdue = isTaskOverdue(
-                                    task,
-                                    project?.columns,
-                                  );
-                                  return (
-                                    <button
-                                      key={task.id}
-                                      type="button"
-                                      onClick={() => onOpenTask(task.id)}
-                                      className="flex w-full flex-col gap-1 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
-                                    >
-                                      <div className="flex items-start justify-between gap-2">
-                                        <span className="line-clamp-2 font-medium text-xs text-foreground">
-                                          {task.title}
-                                        </span>
-                                        {overdue ? (
-                                          <Badge
-                                            variant="error"
-                                            size="sm"
-                                            className="shrink-0"
-                                          >
-                                            {t("tasks:workload.overdueBadge")}
-                                          </Badge>
-                                        ) : null}
-                                      </div>
-                                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                                        <span className="inline-flex items-center gap-1">
-                                          <span
-                                            className="size-2 rounded-full bg-(--swatch) dark:bg-(--swatch-dark)"
-                                            style={
-                                              {
-                                                "--swatch": statusSwatch.fill,
-                                                "--swatch-dark":
-                                                  statusSwatch.fillDark,
-                                              } as React.CSSProperties
-                                            }
-                                          />
-                                          {getStatusLabel(task.status)}
-                                        </span>
-                                        {task.priority ? (
-                                          <span>
-                                            · {getPriorityLabel(task.priority)}
-                                          </span>
-                                        ) : null}
-                                        {task.dueDate ? (
-                                          <span className="ml-auto tabular-nums">
-                                            {formatDateShort(task.dueDate)}
-                                          </span>
-                                        ) : null}
-                                      </div>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </PopoverContent>
-                        </Popover>
-                      </td>
-                    );
-                  })}
+                          ) : null}
+                        </div>
+                      </div>
+                    </td>
 
-                  <td className="px-3 py-2.5 text-center font-semibold text-xs text-foreground tabular-nums">
-                    {row.tasks.length}
-                  </td>
-                </tr>
-              ))}
+                    {weeks.map((week, weekIndex) => {
+                      const cellTasks: Task[] = row.byWeek[weekIndex] ?? [];
+                      const count = cellTasks.length;
+                      return (
+                        <td
+                          key={week.key}
+                          className={cn(
+                            "border-border/50 border-r p-1.5 text-center",
+                            week.isCurrent && "bg-primary/4",
+                          )}
+                        >
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label={`${row.person.name} (${week.label}): ${count}`}
+                                className={cn(
+                                  "inline-flex h-8 w-full items-center justify-center rounded-md border text-xs transition-colors tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                  getCellTone(count, capacity),
+                                )}
+                              >
+                                {count > 0 ? count : "–"}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="center" className="w-80 p-2">
+                              <div className="mb-2 flex items-center justify-between gap-2 border-border/70 border-b px-1 pb-1.5">
+                                <div className="min-w-0">
+                                  <p className="truncate font-semibold text-xs text-foreground">
+                                    {t("tasks:workload.weekTasksTitle")}
+                                  </p>
+                                  <p className="truncate text-[11px] text-muted-foreground">
+                                    {row.person.name} · {week.label}
+                                  </p>
+                                </div>
+                                <Badge variant="outline" size="sm">
+                                  {count}
+                                </Badge>
+                              </div>
+                              {cellTasks.length === 0 ? (
+                                <p className="px-1 py-3 text-center text-xs text-muted-foreground">
+                                  {t("tasks:workload.noTasksInWeek")}
+                                </p>
+                              ) : (
+                                <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+                                  {cellTasks.map((task) => {
+                                    const statusSwatch = getStatusColor(
+                                      task.status,
+                                    );
+                                    const overdue = isTaskOverdue(
+                                      task,
+                                      project?.columns,
+                                    );
+                                    return (
+                                      <button
+                                        key={task.id}
+                                        type="button"
+                                        onClick={() => onOpenTask(task.id)}
+                                        className="flex w-full flex-col gap-1 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
+                                      >
+                                        <div className="flex items-start justify-between gap-2">
+                                          <span className="line-clamp-2 font-medium text-xs text-foreground">
+                                            {task.title}
+                                          </span>
+                                          {overdue ? (
+                                            <Badge
+                                              variant="error"
+                                              size="sm"
+                                              className="shrink-0"
+                                            >
+                                              {t("tasks:workload.overdueBadge")}
+                                            </Badge>
+                                          ) : null}
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                                          <span className="inline-flex items-center gap-1">
+                                            <span
+                                              className="size-2 rounded-full bg-(--swatch) dark:bg-(--swatch-dark)"
+                                              style={
+                                                {
+                                                  "--swatch": statusSwatch.fill,
+                                                  "--swatch-dark":
+                                                    statusSwatch.fillDark,
+                                                } as React.CSSProperties
+                                              }
+                                            />
+                                            {getStatusLabel(task.status)}
+                                          </span>
+                                          {task.priority ? (
+                                            <span>
+                                              ·{" "}
+                                              {getPriorityLabel(task.priority)}
+                                            </span>
+                                          ) : null}
+                                          {task.dueDate ? (
+                                            <span className="ml-auto tabular-nums">
+                                              {formatDateShort(task.dueDate)}
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </PopoverContent>
+                          </Popover>
+                        </td>
+                      );
+                    })}
+
+                    <td className="px-3 py-2.5 text-center font-semibold text-xs text-foreground tabular-nums">
+                      {row.tasks.length}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -24,6 +24,13 @@ export const adminUserSchema = z
       description:
         "Linked sign-in methods: `credential` (password), `github`, `google`, `discord`, or `custom` (OIDC).",
     }),
+    cedula: z.string().nullable(),
+    nacionalidad: z.string().nullable(),
+    grado: z.string().nullable(),
+    componente: z.string().nullable(),
+    unidad: z.string().nullable(),
+    pendiente: z.boolean().nullable(),
+    sincronizadoEn: isoTimestamp.nullable(),
   })
   .openapi("AdminUser");
 
@@ -149,8 +156,13 @@ export const createdAdminUserSchema = z
         description:
           "Whether the link to choose a password was emailed: `not_configured` without SMTP, `not_needed` when the account is for single sign-on. The link itself is never returned.",
       }),
+    temporaryPassword: z.string().nullable().optional(),
   })
   .openapi("CreatedAdminUser");
+
+export const adminTemporaryPasswordSchema = z
+  .object({ temporaryPassword: z.string() })
+  .openapi("AdminTemporaryPassword");
 
 export const adminEmailSentSchema = z
   .object({ sent: z.literal(true) })

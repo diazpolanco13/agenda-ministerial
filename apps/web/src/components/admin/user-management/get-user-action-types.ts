@@ -17,6 +17,7 @@ export function getUserActionTypes(
 ): UserActionType[] {
   const types: UserActionType[] = [];
   if (!user.isAnonymous && permissions.includes("users:credentials")) {
+    if (!isSelf) types.push("generateTemporaryPassword");
     if (canSendPasswordReset) types.push("sendPasswordReset");
     if (!user.emailVerified)
       types.push("sendVerification", "markEmailVerified");

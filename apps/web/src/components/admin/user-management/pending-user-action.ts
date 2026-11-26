@@ -1,6 +1,7 @@
 import type { AdminUser } from "@/hooks/queries/admin/use-admin-users";
 
 export type UserActionType =
+  | "generateTemporaryPassword"
   | "sendPasswordReset"
   | "sendVerification"
   | "markEmailVerified"

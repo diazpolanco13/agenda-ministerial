@@ -102,3 +102,14 @@ export {
   isInstancePermission,
   parseInstanceRoles,
 } from "./instance.js";
+
+export {
+  CUSTOM_INSTITUTIONAL_ROLES,
+  type CustomInstitutionalRole,
+  INSTITUTIONAL_INSTANCE_ROLE_PERMISSIONS,
+  INSTITUTIONAL_ROLE_LABELS,
+  INSTITUTIONAL_ROLES,
+  INSTITUTIONAL_WORKSPACE_ROLE_PERMISSIONS,
+  type InstitutionalRole,
+  isInstitutionalRole,
+} from "./institutional.js";

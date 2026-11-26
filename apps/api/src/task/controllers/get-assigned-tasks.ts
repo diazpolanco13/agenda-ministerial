@@ -13,6 +13,7 @@ import db from "../../database";
 import {
   columnTable,
   labelTable,
+  militarPerfilTable,
   projectTable,
   taskTable,
 } from "../../database/schema";
@@ -94,9 +95,17 @@ async function getAssignedTasks(
         projectName: projectTable.name,
         projectSlug: projectTable.slug,
         projectIcon: projectTable.icon,
+        assigneeCedula: militarPerfilTable.cedula,
+        assigneeGrado: militarPerfilTable.grado,
+        assigneeComponente: militarPerfilTable.componente,
+        assigneeUnidad: militarPerfilTable.unidad,
       })
       .from(taskTable)
       .innerJoin(projectTable, eq(taskTable.projectId, projectTable.id))
+      .leftJoin(
+        militarPerfilTable,
+        eq(taskTable.userId, militarPerfilTable.userId),
+      )
       .leftJoinLateral(statusColumn, sql`true`)
       .where(openAndMine)
       .orderBy(

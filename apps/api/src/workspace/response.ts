@@ -32,6 +32,12 @@ export const workspaceMemberSchema = z
       description:
         "The member's workspace role: a built-in role (owner, admin, member, viewer) or the name of a custom role defined in the workspace. Several roles are comma-separated, for example owner,viewer.",
     }),
+    cedula: z.string().nullable().optional(),
+    nacionalidad: z.string().nullable().optional(),
+    grado: z.string().nullable().optional(),
+    componente: z.string().nullable().optional(),
+    unidad: z.string().nullable().optional(),
+    pendiente: z.boolean().nullable().optional(),
   })
   .openapi("WorkspaceMember");
 

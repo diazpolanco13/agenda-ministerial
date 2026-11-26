@@ -106,7 +106,7 @@ export default async function getTaskByTicketId(
   }
 
   return {
-    ...(await getTask(matchedTask.id)),
+    ...(await getTask(matchedTask.id, false, userId)),
     workspaceId: matchedTask.workspaceId,
   };
 }

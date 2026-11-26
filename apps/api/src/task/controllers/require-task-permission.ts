@@ -4,6 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { requireEntitlement } from "../../billing/require-entitlement-middleware";
 import db from "../../database";
 import { taskTable } from "../../database/schema";
+import { isRestrictedResponsable } from "../../utils/is-restricted-responsable";
 import { requireWorkspacePermission } from "../../utils/require-workspace-permission";
 
 type BulkTaskOperation =
@@ -102,4 +103,36 @@ export async function requireTaskRecurrencePermission(c: Context, next: Next) {
   return requireWorkspacePermission({
     task: recurrence == null ? ["update"] : ["update", "create"],
   })(c, next);
+}
+
+/**
+ * Restringe al rol `responsable` a modificar únicamente las tareas asignadas
+ * a su propio usuario (`task.userId === callerUserId`).
+ */
+export async function requireOwnTaskIfResponsable(c: Context, next: Next) {
+  const workspaceId = c.get("workspaceId") as string | undefined;
+  const userId = c.get("userId") as string | undefined;
+  const taskId = c.req.param("id");
+
+  if (!workspaceId || !userId || !taskId) {
+    return next();
+  }
+
+  if (!(await isRestrictedResponsable(c, workspaceId))) {
+    return next();
+  }
+
+  const [existingTask] = await db
+    .select({ userId: taskTable.userId })
+    .from(taskTable)
+    .where(eq(taskTable.id, taskId))
+    .limit(1);
+
+  if (existingTask && existingTask.userId !== userId) {
+    throw new HTTPException(403, {
+      message: "Solo puedes modificar tareas asignadas a tu usuario",
+    });
+  }
+
+  return next();
 }

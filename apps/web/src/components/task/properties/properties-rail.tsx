@@ -83,6 +83,11 @@ export function PropertiesRail({
           <TaskAssigneePopover task={task} workspaceId={workspaceId}>
             <PropertyValue data-task-action="assignee" shortcutId="assignTask">
               <AssigneeAvatar
+                userId={task.userId}
+                cedula={task.assigneeCedula}
+                grado={task.assigneeGrado}
+                componente={task.assigneeComponente}
+                unidad={task.assigneeUnidad}
                 name={assignee?.user?.name || task.assigneeName}
                 image={assignee?.user?.image}
                 assigned={Boolean(task.userId)}

@@ -27,6 +27,10 @@ import { canManageUser } from "./can-manage-user";
 import { CreateUserDialog } from "./create-user-dialog";
 import { EditUserDialog } from "./edit-user-dialog";
 import type { PendingUserAction } from "./pending-user-action";
+import {
+  TemporaryPasswordDialog,
+  type TemporaryPasswordPayload,
+} from "./temporary-password-dialog";
 import { UserConfirmDialog } from "./user-confirm-dialog";
 import { UserDirectoryHead } from "./user-directory-head";
 import { UserDirectoryFilters } from "./user-directory-filters";
@@ -62,6 +66,8 @@ function UserManagementPanel({ initialRole }: UserManagementPanelProps) {
   const [pendingAction, setPendingAction] = useState<PendingUserAction | null>(
     null,
   );
+  const [temporaryPasswordPayload, setTemporaryPasswordPayload] =
+    useState<TemporaryPasswordPayload | null>(null);
 
   const { data, isLoading, isFetching, isError, refetch } = useAdminUsers(
     debouncedSearch,
@@ -205,7 +211,11 @@ function UserManagementPanel({ initialRole }: UserManagementPanelProps) {
         </SettingsCard>
       </SettingsSection>
 
-      <CreateUserDialog open={isCreating} onOpenChange={setIsCreating} />
+      <CreateUserDialog
+        open={isCreating}
+        onOpenChange={setIsCreating}
+        onTemporaryPassword={setTemporaryPasswordPayload}
+      />
 
       <EditUserDialog
         user={editingUser}
@@ -223,6 +233,12 @@ function UserManagementPanel({ initialRole }: UserManagementPanelProps) {
       <UserConfirmDialog
         action={pendingAction}
         onClose={() => setPendingAction(null)}
+        onTemporaryPassword={setTemporaryPasswordPayload}
+      />
+
+      <TemporaryPasswordDialog
+        payload={temporaryPasswordPayload}
+        onClose={() => setTemporaryPasswordPayload(null)}
       />
     </SettingsPage>
   );

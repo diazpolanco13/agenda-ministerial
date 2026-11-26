@@ -18,11 +18,13 @@ import {
   columnTable,
   externalLinkTable,
   labelTable,
+  militarPerfilTable,
   projectTable,
   taskTable,
   taskRelationTable,
   userTable,
 } from "../../database/schema";
+import { isRestrictedResponsable } from "../../utils/is-restricted-responsable";
 import { boundedTaskRead, type TaskReadDatabase } from "../bounded-read";
 import {
   boardDescription,
@@ -121,6 +123,14 @@ async function getTasksPage(
 
   const conditions = [eq(taskTable.projectId, projectId)];
 
+  if (
+    !options.publicOnly &&
+    userId &&
+    (await isRestrictedResponsable(userId, project.workspaceId))
+  ) {
+    conditions.push(eq(taskTable.userId, userId));
+  }
+
   if (options.status) {
     conditions.push(eq(taskTable.status, options.status));
   }
@@ -196,14 +206,36 @@ async function getTasksPage(
     assigneeName: userTable.name,
     assigneeId: userTable.id,
     assigneeImage: userTable.image,
+    assigneeCedula: options.publicOnly
+      ? sql<string | null>`null`
+      : militarPerfilTable.cedula,
+    assigneeGrado: options.publicOnly
+      ? sql<string | null>`null`
+      : militarPerfilTable.grado,
+    assigneeComponente: options.publicOnly
+      ? sql<string | null>`null`
+      : militarPerfilTable.componente,
+    assigneeUnidad: options.publicOnly
+      ? sql<string | null>`null`
+      : militarPerfilTable.unidad,
     projectId: taskTable.projectId,
   };
 
-  const query = db
+  const baseQuery = db
     .select(taskSelection)
     .from(taskTable)
     .leftJoin(userTable, eq(taskTable.userId, userTable.id))
     .leftJoin(projectTable, eq(taskTable.projectId, projectTable.id))
+    .$dynamic();
+
+  const query = (
+    options.publicOnly
+      ? baseQuery
+      : baseQuery.leftJoin(
+          militarPerfilTable,
+          eq(taskTable.userId, militarPerfilTable.userId),
+        )
+  )
     .where(whereClause)
     .orderBy(orderByClause, asc(taskTable.id));
 

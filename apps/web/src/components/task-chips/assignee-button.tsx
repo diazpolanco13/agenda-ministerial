@@ -9,6 +9,10 @@ type AssigneeButtonProps = {
   workspaceId: string;
   name: string | null | undefined;
   image: string | null | undefined;
+  cedula?: string | null;
+  grado?: string | null;
+  componente?: string | null;
+  unidad?: string | null;
   avatarClassName?: string;
   avatarFallbackClassName?: string;
 };
@@ -18,6 +22,10 @@ export function AssigneeButton({
   workspaceId,
   name,
   image,
+  cedula,
+  grado,
+  componente,
+  unidad,
   avatarClassName,
   avatarFallbackClassName,
 }: AssigneeButtonProps) {
@@ -30,6 +38,7 @@ export function AssigneeButton({
     <TaskAssigneePopover task={task} workspaceId={workspaceId}>
       <button
         type="button"
+        data-task-action="assignee"
         aria-label={label}
         title={label}
         className="relative flex shrink-0 cursor-pointer rounded-full outline-none ring-offset-1 ring-offset-board-card transition-shadow before:absolute before:-inset-1 hover:ring-2 hover:ring-chip-border-hover focus-visible:ring-[3px] focus-visible:ring-board-card-ring data-popup-open:ring-2 data-popup-open:ring-chip-border-open"
@@ -39,6 +48,11 @@ export function AssigneeButton({
           userId={task.userId}
           name={name}
           image={image}
+          cedula={cedula ?? task.assigneeCedula}
+          grado={grado ?? task.assigneeGrado}
+          componente={componente ?? task.assigneeComponente}
+          unidad={unidad ?? task.assigneeUnidad}
+          showHoverCard
           assigned={Boolean(task.userId)}
           className={avatarClassName}
           fallbackClassName={avatarFallbackClassName}

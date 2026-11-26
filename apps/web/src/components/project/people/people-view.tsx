@@ -18,6 +18,11 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useGetActiveWorkspaceUsers } from "@/hooks/queries/workspace-users/use-get-active-workspace-users";
+import useGetProjectMembers from "@/hooks/queries/workspace-users/use-get-project-members";
+import {
+  indexMilitaryProfiles,
+  resolvePersonMilitary,
+} from "@/hooks/use-responsable-foto";
 import { getStatusColor } from "@/lib/agenda-palette";
 import { cn } from "@/lib/cn";
 import { isTaskCompleted } from "@/lib/due-date-status";
@@ -75,6 +80,14 @@ export function PeopleView({
 }: PeopleViewProps) {
   const { t } = useTranslation();
   const { data: workspaceUsers } = useGetActiveWorkspaceUsers(workspaceId);
+  const { data: projectMembers } = useGetProjectMembers({
+    workspaceId,
+    projectId: project?.id ?? "",
+  });
+  const militaryByUserId = useMemo(
+    () => indexMilitaryProfiles(projectMembers),
+    [projectMembers],
+  );
   const members = useMemo(
     () => (workspaceUsers?.members ?? []) as WorkspaceMemberEntry[],
     [workspaceUsers?.members],
@@ -148,152 +161,169 @@ export function PeopleView({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 p-4 sm:p-6 md:grid-cols-2 xl:grid-cols-3">
-          {cards.map((card) => (
-            <Card key={card.person.key} className="justify-between">
-              <CardHeader className="gap-3 pb-3">
-                <div className="flex items-center gap-3.5">
-                  <ResponsableAvatar
-                    userId={card.person.userId}
-                    name={card.person.name}
-                    image={card.person.image}
-                    assigned={card.person.isAssigned}
-                    size="lg"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <h2 className="truncate font-semibold text-sm text-foreground">
-                      {card.person.name}
-                    </h2>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {card.person.subtitle ||
-                        t("tasks:people.totalAssigned", { count: card.total })}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                      {t("tasks:people.totalAssigned", { count: card.total })}
-                    </p>
+          {cards.map((card) => {
+            const military = resolvePersonMilitary(
+              card.person.userId,
+              militaryByUserId,
+              card.tasks,
+            );
+            return (
+              <Card key={card.person.key} className="justify-between">
+                <CardHeader className="gap-3 pb-3">
+                  <div className="flex items-center gap-3.5">
+                    <ResponsableAvatar
+                      userId={card.person.userId}
+                      name={card.person.name}
+                      image={card.person.image}
+                      cedula={military.cedula}
+                      nacionalidad={military.nacionalidad}
+                      grado={military.grado}
+                      componente={military.componente}
+                      unidad={military.unidad}
+                      showHoverCard
+                      assigned={card.person.isAssigned}
+                      size="lg"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <h2 className="truncate font-semibold text-sm text-foreground">
+                        {card.person.name}
+                      </h2>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {military.grado
+                          ? `${military.grado}${military.unidad ? ` · ${military.unidad}` : ""}`
+                          : card.person.subtitle ||
+                            t("tasks:people.totalAssigned", {
+                              count: card.total,
+                            })}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                        {t("tasks:people.totalAssigned", { count: card.total })}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
+                </CardHeader>
 
-              <CardContent className="flex flex-col gap-4">
-                <div className="grid grid-cols-4 gap-1.5">
-                  <div className="rounded-lg border border-border/70 bg-muted/30 px-1 py-1.5 text-center">
-                    <div className="font-semibold text-sm text-foreground tabular-nums">
-                      {card.open}
+                <CardContent className="flex flex-col gap-4">
+                  <div className="grid grid-cols-4 gap-1.5">
+                    <div className="rounded-lg border border-border/70 bg-muted/30 px-1 py-1.5 text-center">
+                      <div className="font-semibold text-sm text-foreground tabular-nums">
+                        {card.open}
+                      </div>
+                      <div className="text-[10px] tracking-tight text-muted-foreground">
+                        {t("tasks:people.open")}
+                      </div>
                     </div>
-                    <div className="text-[10px] tracking-tight text-muted-foreground">
-                      {t("tasks:people.open")}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-border/70 bg-muted/30 px-1 py-1.5 text-center">
-                    <div className="font-semibold text-sm text-foreground tabular-nums">
-                      {card.completed}
-                    </div>
-                    <div className="text-[10px] tracking-tight text-muted-foreground">
-                      {t("tasks:people.completed")}
-                    </div>
-                  </div>
-                  <div
-                    className={cn(
-                      "rounded-lg border px-1 py-1.5 text-center",
-                      card.overdue > 0
-                        ? "border-destructive/40 bg-destructive/12 text-destructive dark:bg-destructive/20 dark:text-red-300"
-                        : "border-border/70 bg-muted/30 text-foreground",
-                    )}
-                  >
-                    <div className="font-semibold text-sm tabular-nums">
-                      {card.overdue}
+                    <div className="rounded-lg border border-border/70 bg-muted/30 px-1 py-1.5 text-center">
+                      <div className="font-semibold text-sm text-foreground tabular-nums">
+                        {card.completed}
+                      </div>
+                      <div className="text-[10px] tracking-tight text-muted-foreground">
+                        {t("tasks:people.completed")}
+                      </div>
                     </div>
                     <div
                       className={cn(
-                        "text-[10px] tracking-tight",
+                        "rounded-lg border px-1 py-1.5 text-center",
                         card.overdue > 0
-                          ? "text-destructive/90 dark:text-red-300"
-                          : "text-muted-foreground",
+                          ? "border-destructive/40 bg-destructive/12 text-destructive dark:bg-destructive/20 dark:text-red-300"
+                          : "border-border/70 bg-muted/30 text-foreground",
                       )}
                     >
-                      {t("tasks:people.overdue")}
+                      <div className="font-semibold text-sm tabular-nums">
+                        {card.overdue}
+                      </div>
+                      <div
+                        className={cn(
+                          "text-[10px] tracking-tight",
+                          card.overdue > 0
+                            ? "text-destructive/90 dark:text-red-300"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {t("tasks:people.overdue")}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border/70 bg-muted/30 px-1 py-1.5 text-center">
+                      <div className="font-semibold text-sm text-foreground tabular-nums">
+                        {card.compliance}%
+                      </div>
+                      <div className="text-[10px] tracking-tight text-muted-foreground">
+                        {t("tasks:people.compliance")}
+                      </div>
                     </div>
                   </div>
-                  <div className="rounded-lg border border-border/70 bg-muted/30 px-1 py-1.5 text-center">
-                    <div className="font-semibold text-sm text-foreground tabular-nums">
-                      {card.compliance}%
+
+                  <Progress value={card.compliance} className="gap-1" />
+
+                  <div>
+                    <div className="mb-1.5 font-medium text-[11px] uppercase tracking-wide text-muted-foreground">
+                      {t("tasks:people.recentTasks")}
                     </div>
-                    <div className="text-[10px] tracking-tight text-muted-foreground">
-                      {t("tasks:people.compliance")}
-                    </div>
+                    {card.keyTasks.length === 0 ? (
+                      <p className="rounded-md border border-border/50 border-dashed px-2.5 py-2 text-xs text-muted-foreground">
+                        {t("tasks:people.noRecentTasks")}
+                      </p>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {card.keyTasks.map((task) => {
+                          const statusSwatch = getStatusColor(task.status);
+                          const overdue = isTaskOverdue(task, project?.columns);
+                          return (
+                            <button
+                              key={task.id}
+                              type="button"
+                              onClick={() => onOpenTask(task.id)}
+                              className="flex items-center justify-between gap-2 rounded-md border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border/70 hover:bg-accent/60"
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span
+                                  className="size-2 shrink-0 rounded-full bg-(--swatch) dark:bg-(--swatch-dark)"
+                                  style={
+                                    {
+                                      "--swatch": statusSwatch.fill,
+                                      "--swatch-dark": statusSwatch.fillDark,
+                                    } as React.CSSProperties
+                                  }
+                                />
+                                <span className="truncate text-xs text-foreground">
+                                  {task.title}
+                                </span>
+                              </div>
+                              {task.dueDate ? (
+                                <Badge
+                                  variant={overdue ? "error" : "outline"}
+                                  size="sm"
+                                  className="shrink-0 gap-1 tabular-nums"
+                                >
+                                  <CalendarClock className="size-2.5" />
+                                  {formatDateShort(task.dueDate)}
+                                </Badge>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
+                </CardContent>
 
-                <Progress value={card.compliance} className="gap-1" />
-
-                <div>
-                  <div className="mb-1.5 font-medium text-[11px] uppercase tracking-wide text-muted-foreground">
-                    {t("tasks:people.recentTasks")}
-                  </div>
-                  {card.keyTasks.length === 0 ? (
-                    <p className="rounded-md border border-border/50 border-dashed px-2.5 py-2 text-xs text-muted-foreground">
-                      {t("tasks:people.noRecentTasks")}
-                    </p>
-                  ) : (
-                    <div className="flex flex-col gap-1">
-                      {card.keyTasks.map((task) => {
-                        const statusSwatch = getStatusColor(task.status);
-                        const overdue = isTaskOverdue(task, project?.columns);
-                        return (
-                          <button
-                            key={task.id}
-                            type="button"
-                            onClick={() => onOpenTask(task.id)}
-                            className="flex items-center justify-between gap-2 rounded-md border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border/70 hover:bg-accent/60"
-                          >
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span
-                                className="size-2 shrink-0 rounded-full bg-(--swatch) dark:bg-(--swatch-dark)"
-                                style={
-                                  {
-                                    "--swatch": statusSwatch.fill,
-                                    "--swatch-dark": statusSwatch.fillDark,
-                                  } as React.CSSProperties
-                                }
-                              />
-                              <span className="truncate text-xs text-foreground">
-                                {task.title}
-                              </span>
-                            </div>
-                            {task.dueDate ? (
-                              <Badge
-                                variant={overdue ? "error" : "outline"}
-                                size="sm"
-                                className="shrink-0 gap-1 tabular-nums"
-                              >
-                                <CalendarClock className="size-2.5" />
-                                {formatDateShort(task.dueDate)}
-                              </Badge>
-                            ) : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-
-              {card.person.userId ? (
-                <CardFooter className="border-border/60 border-t pt-3 pb-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-between"
-                    onClick={() => onViewInGantt(card.person.userId!)}
-                  >
-                    <span>{t("tasks:people.filterInGantt")}</span>
-                    <ArrowRight className="size-3.5" />
-                  </Button>
-                </CardFooter>
-              ) : null}
-            </Card>
-          ))}
+                {card.person.userId ? (
+                  <CardFooter className="border-border/60 border-t pt-3 pb-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-between"
+                      onClick={() => onViewInGantt(card.person.userId!)}
+                    >
+                      <span>{t("tasks:people.filterInGantt")}</span>
+                      <ArrowRight className="size-3.5" />
+                    </Button>
+                  </CardFooter>
+                ) : null}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

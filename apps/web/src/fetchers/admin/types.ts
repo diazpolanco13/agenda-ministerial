@@ -27,8 +27,15 @@ export type AdminUserFilters = {
 
 export type CreateAdminUserRequest = {
   name: string;
-  email: string;
+  email?: string;
   role: string;
+  cedula?: string;
+  nacionalidad?: string;
+  grado?: string;
+  componente?: string;
+  unidad?: string;
+  generarContrasenaTemporal?: boolean;
+  workspaceId?: string;
 };
 
 export type SetAdminUserAvatarRequest = {

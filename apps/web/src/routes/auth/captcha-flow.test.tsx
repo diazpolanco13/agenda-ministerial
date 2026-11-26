@@ -136,9 +136,17 @@ describe.each([
 
 describe("sign-in password form", () => {
   it("sends the CAPTCHA token with a password sign-in", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Retry" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
     const Page = signin.options.component as ComponentType;
     render(<Page />);
-    fireEvent.change(screen.getByLabelText("auth:forms.email"), {
+    fireEvent.change(screen.getByLabelText("auth:forms.identifier"), {
       target: { value: "person@example.com" },
     });
     fireEvent.change(screen.getByLabelText("auth:forms.password"), {
@@ -150,10 +158,21 @@ describe("sign-in password form", () => {
     expect(submit).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Solve CAPTCHA" }));
     fireEvent.click(submit);
-    await waitFor(() => expect(m.email).toHaveBeenCalledTimes(1));
-    expect(m.email).toHaveBeenCalledWith(
-      { email: "person@example.com", password: "long-test-password" },
-      { headers: { "x-turnstile-token": "fresh-token" } },
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/auth/ingresar"),
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+        headers: expect.objectContaining({
+          "x-turnstile-token": "fresh-token",
+        }),
+        body: JSON.stringify({
+          identificador: "person@example.com",
+          password: "long-test-password",
+        }),
+      }),
     );
+    fetchSpy.mockRestore();
   });
 });

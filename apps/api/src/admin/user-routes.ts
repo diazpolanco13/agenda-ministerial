@@ -12,6 +12,7 @@ import { requireManageableUser } from "./roles/require-manageable-user";
 import { requireUserSession } from "../utils/require-user-session";
 import { adminAuditRequest } from "./audit/admin-audit-request";
 import createUser from "./controllers/create-user";
+import generateTemporaryPassword from "./controllers/generate-temporary-password";
 import markEmailVerified from "./controllers/mark-email-verified";
 import removeUserAvatar from "./controllers/remove-user-avatar";
 import sendPasswordResetEmail from "./controllers/send-password-reset-email";
@@ -20,6 +21,7 @@ import setUserAvatar from "./controllers/set-user-avatar";
 import {
   adminEmailSentSchema,
   adminEmailVerifiedSchema,
+  adminTemporaryPasswordSchema,
   adminUserAvatarRemovedSchema,
   adminUserAvatarSchema,
   createdAdminUserSchema,
@@ -61,6 +63,28 @@ const createUserRoute = createRoute({
     400: errorResponse("Invalid name, email, or role, or a disposable address"),
     403: forbidden,
     409: errorResponse("A user with this email already exists"),
+  },
+});
+
+const generateTemporaryPasswordRoute = createRoute({
+  method: "post",
+  operationId: "generateAdminUserTemporaryPassword",
+  path: "/{userId}/temporary-password",
+  tags: ["Admin"],
+  summary: "Generate a one-time temporary password",
+  description:
+    "Generate a one-time temporary password for a user, revoke active sessions, mark email as verified, and clear pending activation.",
+  middleware: [
+    requireUserSession,
+    requireInstancePermission("users:credentials"),
+    requireManageableUser,
+  ] as const,
+  request: { params: adminUserParam },
+  responses: {
+    200: jsonResponse("Temporary password", adminTemporaryPasswordSchema),
+    403: forbidden,
+    404: notFound,
+    409: errorResponse("Guest accounts do not support passwords"),
   },
 });
 
@@ -189,6 +213,15 @@ const removeAvatarRoute = createRoute({
 const adminUserRoutes = apiRouter()
   .openapi(createUserRoute, async (c) =>
     c.json(await createUser(c.req.valid("json"), adminAuditRequest(c)), 201),
+  )
+  .openapi(generateTemporaryPasswordRoute, async (c) =>
+    c.json(
+      await generateTemporaryPassword(
+        c.req.valid("param").userId,
+        adminAuditRequest(c),
+      ),
+      200,
+    ),
   )
   .openapi(sendPasswordResetRoute, async (c) =>
     c.json(

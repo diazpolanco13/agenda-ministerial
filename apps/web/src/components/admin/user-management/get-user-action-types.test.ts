@@ -14,13 +14,19 @@ describe("getUserActionTypes", () => {
         { isAnonymous: false, emailVerified: true, banned: false },
         options,
       ),
-    ).toEqual(["sendPasswordReset", "deactivate", "delete"]);
+    ).toEqual([
+      "generateTemporaryPassword",
+      "sendPasswordReset",
+      "deactivate",
+      "delete",
+    ]);
     expect(
       getUserActionTypes(
         { isAnonymous: false, emailVerified: false, banned: true },
         options,
       ),
     ).toEqual([
+      "generateTemporaryPassword",
       "sendPasswordReset",
       "sendVerification",
       "markEmailVerified",
@@ -53,7 +59,7 @@ describe("getUserActionTypes", () => {
         { isAnonymous: false, emailVerified: true, banned: false },
         { ...options, canSendPasswordReset: false },
       ),
-    ).toEqual(["deactivate", "delete"]);
+    ).toEqual(["generateTemporaryPassword", "deactivate", "delete"]);
   });
 
   it("offers only the actions the viewer has permission for", () => {

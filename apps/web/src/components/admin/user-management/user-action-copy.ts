@@ -2,13 +2,30 @@ import type { UserActionType } from "./pending-user-action";
 
 type ActionCopy = {
   menu: string;
+  menuDefault?: string;
   title: string;
+  titleDefault?: string;
   description?: string;
+  descriptionDefault?: string;
   action: string;
+  actionDefault?: string;
   destructive: boolean;
 };
 
 export const USER_ACTION_COPY: Record<UserActionType, ActionCopy> = {
+  generateTemporaryPassword: {
+    menu: "settings:adminUsers.actions.generateTemporaryPassword",
+    menuDefault: "Generar contraseña temporal",
+    title: "settings:adminUsers.confirm.generateTemporaryPassword.title",
+    titleDefault: "¿Generar contraseña temporal?",
+    description:
+      "settings:adminUsers.confirm.generateTemporaryPassword.description",
+    descriptionDefault:
+      "Se generará una nueva contraseña temporal para {{name}}, se cerrarán sus sesiones activas y se mostrará una sola vez.",
+    action: "settings:adminUsers.confirm.generateTemporaryPassword.action",
+    actionDefault: "Generar contraseña",
+    destructive: false,
+  },
   sendPasswordReset: {
     menu: "settings:adminUsers.actions.sendPasswordReset",
     title: "settings:adminUsers.confirm.sendPasswordReset.title",

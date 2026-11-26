@@ -30,12 +30,18 @@ vi.mock("react-i18next", () => ({
     t: (key: string, options?: { provider?: string }) =>
       options?.provider ? `${key}|${options.provider}` : key,
   }),
+  initReactI18next: { type: "3rdParty", init: () => {} },
 }));
 vi.mock("@/components/providers/auth-provider/hooks/use-auth", () => ({
   default: () => ({ user: m.user, refetchUser: vi.fn() }),
 }));
 vi.mock("@/hooks/queries/user/use-managed-profile-fields", () => ({
   default: () => m.managedFields,
+}));
+vi.mock("@/hooks/queries/user/use-current-user", () => ({
+  useCurrentUser: () => ({ data: undefined, isLoading: false }),
+  useSyncSigefanbProfile: () => ({ mutate: vi.fn(), isPending: false }),
+  default: () => ({ data: undefined, isLoading: false }),
 }));
 vi.mock("@/hooks/queries/config/use-get-config", () => ({
   default: () => ({ data: m.config }),

@@ -1,4 +1,5 @@
 import { UnassignedAvatar } from "@/components/common/unassigned-avatar";
+import { ResponsableHoverCard } from "@/components/responsable-hover-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useResponsableFoto } from "@/hooks/use-responsable-foto";
 import { cn } from "@/lib/cn";
@@ -16,6 +17,12 @@ type ResponsableAvatarProps = {
   userId?: string | null;
   name?: string | null;
   image?: string | null;
+  cedula?: string | null;
+  nacionalidad?: string | null;
+  grado?: string | null;
+  componente?: string | null;
+  unidad?: string | null;
+  showHoverCard?: boolean;
   assigned?: boolean;
   size?: ResponsableAvatarSize;
   className?: string;
@@ -25,21 +32,28 @@ type ResponsableAvatarProps = {
 
 /**
  * Avatar institucional reutilizable para responsables en Gantt, Tablero, Lista,
- * Carga de trabajo y Personas. Delega en `useResponsableFoto` para que la
- * Fase 4 enchufe fotos SIGEFANB en un solo punto.
+ * Carga de trabajo y Personas. Delega en `useResponsableFoto` para resolver
+ * fotos SIGEFANB con fallback a `image` local o iniciales.
  */
 export function ResponsableAvatar({
   userId,
   name,
   image,
+  cedula,
+  nacionalidad,
+  grado,
+  componente,
+  unidad,
+  showHoverCard = false,
   assigned = true,
   size = "sm",
   className,
   fallbackClassName,
   alt,
 }: ResponsableAvatarProps) {
-  const { src, initials, swatch } = useResponsableFoto({
+  const { src, initials, swatch, markFailed } = useResponsableFoto({
     userId,
+    cedula,
     image,
     name,
   });
@@ -48,7 +62,7 @@ export function ResponsableAvatar({
     return <UnassignedAvatar className={cn(SIZE_CLASSES[size], className)} />;
   }
 
-  return (
+  const avatar = (
     <Avatar
       className={cn(
         SIZE_CLASSES[size],
@@ -56,7 +70,14 @@ export function ResponsableAvatar({
         className,
       )}
     >
-      {src ? <AvatarImage src={src} alt={alt ?? name ?? ""} /> : null}
+      {src ? (
+        <AvatarImage
+          key={src}
+          src={src}
+          alt={alt ?? name ?? ""}
+          onError={() => markFailed(src)}
+        />
+      ) : null}
       <AvatarFallback
         style={
           fallbackClassName
@@ -66,13 +87,32 @@ export function ResponsableAvatar({
                 color: swatch.onFill,
               }
         }
-        className={cn(
-          "font-semibold tracking-tight",
-          fallbackClassName,
-        )}
+        className={cn("font-semibold tracking-tight", fallbackClassName)}
       >
         {initials}
       </AvatarFallback>
     </Avatar>
   );
+
+  const hasHoverDetails = Boolean(
+    name || grado || componente || unidad || cedula,
+  );
+  if (showHoverCard && hasHoverDetails) {
+    return (
+      <ResponsableHoverCard
+        userId={userId}
+        name={name}
+        image={image}
+        cedula={cedula}
+        nacionalidad={nacionalidad}
+        grado={grado}
+        componente={componente}
+        unidad={unidad}
+      >
+        {avatar}
+      </ResponsableHoverCard>
+    );
+  }
+
+  return avatar;
 }
