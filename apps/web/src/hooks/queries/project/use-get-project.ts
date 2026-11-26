@@ -15,6 +15,7 @@ function useGetProject({
     queryFn: () => getProject({ id, workspaceId }),
     queryKey: ["projects", workspaceId, id],
     enabled: !!id,
+    staleTime: 30_000,
     placeholderData: () =>
       queryClient
         .getQueryData<Awaited<ReturnType<typeof getProjects>>>([

@@ -1,5 +1,15 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import {
+  type AccessibilityPreferences,
+  type FontScalePreset,
+  type ReduceMotionPreference,
+  applyAccessibilityToDocument,
+  DEFAULT_ACCESSIBILITY_PREFERENCES,
+  isEffectiveReducedMotion,
+  persistAccessibilityLocal,
+  readAccessibilityLocal,
+} from "@/lib/accessibility";
 
 export const WEEK_START_DAYS = [0, 1, 6] as const;
 export type WeekStartDay = (typeof WEEK_START_DAYS)[number];
@@ -70,11 +80,21 @@ type UserPreferencesStore = {
 
   priorityIconStyle: PriorityIconStyle;
   setPriorityIconStyle: (style: PriorityIconStyle) => void;
+
+  fontScale: FontScalePreset;
+  setFontScale: (scale: FontScalePreset) => void;
+  highContrast: boolean;
+  setHighContrast: (enabled: boolean) => void;
+  reduceMotion: ReduceMotionPreference;
+  setReduceMotion: (mode: ReduceMotionPreference) => void;
+  hydrateAccessibility: (prefs: AccessibilityPreferences) => void;
 };
+
+const initialAccessibility = readAccessibilityLocal();
 
 export const useUserPreferencesStore = create<UserPreferencesStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       theme: "light",
       setTheme: (
         theme: "light" | "dark" | "system",
@@ -94,7 +114,11 @@ export const useUserPreferencesStore = create<UserPreferencesStore>()(
           document.documentElement.style.removeProperty("--y");
         }
 
-        if ("startViewTransition" in document) {
+        const shouldAnimate =
+          "startViewTransition" in document &&
+          !isEffectiveReducedMotion(get().reduceMotion);
+
+        if (shouldAnimate) {
           document.startViewTransition(() => {
             set({ theme });
           });
@@ -167,6 +191,51 @@ export const useUserPreferencesStore = create<UserPreferencesStore>()(
 
       priorityIconStyle: "marks",
       setPriorityIconStyle: (priorityIconStyle) => set({ priorityIconStyle }),
+
+      fontScale:
+        initialAccessibility.fontScale ??
+        DEFAULT_ACCESSIBILITY_PREFERENCES.fontScale,
+      setFontScale: (fontScale) => {
+        const next: AccessibilityPreferences = {
+          fontScale,
+          highContrast: get().highContrast,
+          reduceMotion: get().reduceMotion,
+        };
+        persistAccessibilityLocal(next);
+        applyAccessibilityToDocument(next);
+        set({ fontScale });
+      },
+      highContrast: initialAccessibility.highContrast,
+      setHighContrast: (highContrast) => {
+        const next: AccessibilityPreferences = {
+          fontScale: get().fontScale,
+          highContrast,
+          reduceMotion: get().reduceMotion,
+        };
+        persistAccessibilityLocal(next);
+        applyAccessibilityToDocument(next);
+        set({ highContrast });
+      },
+      reduceMotion: initialAccessibility.reduceMotion,
+      setReduceMotion: (reduceMotion) => {
+        const next: AccessibilityPreferences = {
+          fontScale: get().fontScale,
+          highContrast: get().highContrast,
+          reduceMotion,
+        };
+        persistAccessibilityLocal(next);
+        applyAccessibilityToDocument(next);
+        set({ reduceMotion });
+      },
+      hydrateAccessibility: (prefs) => {
+        persistAccessibilityLocal(prefs);
+        applyAccessibilityToDocument(prefs);
+        set({
+          fontScale: prefs.fontScale,
+          highContrast: prefs.highContrast,
+          reduceMotion: prefs.reduceMotion,
+        });
+      },
     }),
     {
       name: "user-preferences",

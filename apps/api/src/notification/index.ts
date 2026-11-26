@@ -253,8 +253,13 @@ subscribeToEvent<{
   currentUserId?: string;
   title: string;
   projectId: string;
+  suppressNotification?: boolean;
 }>("task.created", async (data) => {
-  if (data.userId && data.userId !== data.currentUserId) {
+  if (
+    !data.suppressNotification &&
+    data.userId &&
+    data.userId !== data.currentUserId
+  ) {
     const [project] = await db
       .select({ workspaceId: projectTable.workspaceId })
       .from(projectTable)

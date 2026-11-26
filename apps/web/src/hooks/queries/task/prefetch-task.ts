@@ -1,12 +1,20 @@
 import type { QueryClient } from "@tanstack/react-query";
-import getTask from "@/fetchers/task/get-task";
-
-const PREFETCH_FRESH_MS = 15_000;
+import getTaskDetail from "@/fetchers/task/get-task-detail";
+import {
+  seedTaskDetailCache,
+  TASK_DETAIL_STALE_TIME_MS,
+} from "./task-detail-cache";
 
 export function prefetchTask(queryClient: QueryClient, taskId: string) {
+  if (!taskId) return Promise.resolve();
+
   return queryClient.prefetchQuery({
-    queryKey: ["task", taskId],
-    queryFn: () => getTask(taskId),
-    staleTime: PREFETCH_FRESH_MS,
+    queryKey: ["task-detail", taskId],
+    queryFn: async () => {
+      const detail = await getTaskDetail(taskId);
+      seedTaskDetailCache(queryClient, taskId, detail);
+      return detail;
+    },
+    staleTime: TASK_DETAIL_STALE_TIME_MS,
   });
 }

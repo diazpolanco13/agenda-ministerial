@@ -99,6 +99,15 @@ vi.mock("@/lib/shiki-highlighter", () => ({
   getSharedShikiHighlighter: () => Promise.resolve(),
 }));
 
+vi.mock("@/hooks/queries/task/task-detail-cache", () => ({
+  TASK_DETAIL_STALE_TIME_MS: 15_000,
+  TaskDetailBootstrapProvider: ({ children }: { children: ReactNode }) =>
+    children,
+  useIsTaskBootstrapping: () => false,
+  findCachedTaskSummary: () => undefined,
+  seedTaskDetailCache: vi.fn(),
+}));
+
 vi.mock("@/hooks/queries/task/use-get-task", () => ({
   default: (taskId: string) => ({
     data: m.tasks[taskId],

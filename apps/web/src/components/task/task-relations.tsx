@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/context-menu";
 import useCreateTaskRelation from "@/hooks/mutations/task-relation/use-create-task-relation";
 import useDeleteTaskRelation from "@/hooks/mutations/task-relation/use-delete-task-relation";
+import { useGetColumns } from "@/hooks/queries/column/use-get-columns";
 import useGetProject from "@/hooks/queries/project/use-get-project";
 import { useGetTasks } from "@/hooks/queries/task/use-get-tasks";
 import useGetTaskRelations from "@/hooks/queries/task-relation/use-get-task-relations";
@@ -93,7 +94,9 @@ export default function TaskRelations({
   const clearRelationRequest = useRelationPickerStore((state) => state.clear);
 
   const { data: relations = [] } = useGetTaskRelations(taskId);
+  const { data: columns = [] } = useGetColumns(projectId);
   const { data: projectData } = useGetTasks(projectId, {
+    enabled: commandOpen,
     refetchOnMount: false,
   });
   const { data: project } = useGetProject({ id: projectId, workspaceId });
@@ -166,30 +169,24 @@ export default function TaskRelations({
   }, [projectData]);
 
   const finalStatusSlugs = useMemo(() => {
-    if (!projectData) return new Set<string>();
-    if ("columns" in projectData && Array.isArray(projectData.columns)) {
-      return new Set(
-        (projectData.columns as Array<{ id: string; isFinal?: boolean }>)
-          .filter((col) => col.isFinal)
-          .map((col) => col.id),
-      );
+    const slugs = new Set<string>();
+    for (const col of columns) {
+      if (col.isFinal) {
+        slugs.add(col.slug);
+        slugs.add(col.id);
+      }
     }
-    return new Set<string>();
-  }, [projectData]);
+    return slugs;
+  }, [columns]);
 
   const columnIconBySlug = useMemo(() => {
     const icons = new Map<string, string | null | undefined>();
-    if (!projectData) return icons;
-    if ("columns" in projectData && Array.isArray(projectData.columns)) {
-      for (const col of projectData.columns as Array<{
-        id: string;
-        icon?: string | null;
-      }>) {
-        icons.set(col.id, col.icon);
-      }
+    for (const col of columns) {
+      icons.set(col.slug, col.icon);
+      icons.set(col.id, col.icon);
     }
     return icons;
-  }, [projectData]);
+  }, [columns]);
 
   const filteredTasks = allTasks.filter(
     (t) => !existingRelatedTaskIds.has(t.id),

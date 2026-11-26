@@ -12,10 +12,8 @@ import {
   workspaceTable,
 } from "../database/schema";
 import { canReceiveResourceNotification } from "../notification/resource-access";
-import {
-  safeOutboundError,
-  sendOutboundRequest,
-} from "../utils/outbound-request";
+import { safeOutboundError, sendOutboundRequest } from "../utils/outbound-request";
+import { deliverAgendaNtfyNotification } from "../ntfy/deliver";
 import { getLocalizedDeliveryContent } from "./delivery-copy";
 import { resolveEmailTask } from "./resolve-email-task";
 import { decryptSecret } from "./secrets";
@@ -393,6 +391,29 @@ export async function deliverNotification(
         "resolveNotificationContext returned null (missing resource, deleted task, or unsupported resource type)",
     });
     return;
+  }
+
+  const eventDataObj =
+    notification.eventData && typeof notification.eventData === "object"
+      ? (notification.eventData as Record<string, unknown>)
+      : null;
+
+  try {
+    await deliverAgendaNtfyNotification({
+      userId: notification.userId,
+      type: notification.type,
+      title: notification.title ?? null,
+      content: notification.content ?? null,
+      eventData: eventDataObj,
+      workspaceId: context.workspaceId,
+      projectId: context.projectId,
+      taskId: context.taskId,
+    });
+  } catch (error) {
+    console.error("AGENDA ntfy delivery failed", {
+      notificationId,
+      error: safeOutboundError(error),
+    });
   }
 
   const [user] = await db

@@ -667,7 +667,26 @@
       "priority": "Prioridad",
       "projectBackgrounds": "Fondos de proyectos",
       "projectBackgroundsDescription": "Muestra la imagen que un proyecto pone detrás de su tablero.",
-      "advancedTitle": "Avanzado"
+      "advancedTitle": "Avanzado",
+      "accessibility": {
+        "title": "Accesibilidad y lectura",
+        "fontSizeTitle": "Tamaño de texto",
+        "fontSizeDescription": "Ajusta la escala tipográfica de toda la aplicación sin romper el diseño.",
+        "scaleNormal": "Normal",
+        "scaleLarge": "Grande",
+        "scaleXLarge": "Muy grande",
+        "scaleExtra": "Extra",
+        "previewTitle": "Vista previa: Reunión de Estado Mayor",
+        "previewDescription": "Texto secundario, etiquetas e indicadores se escalan proporcionalmente.",
+        "highContrastTitle": "Alto contraste",
+        "highContrastDescription": "Refuerza bordes, textos secundarios y foco visible en modo claro y oscuro.",
+        "reduceMotionTitle": "Reducir movimiento",
+        "reduceMotionDescription": "Desactiva transiciones y animaciones. En «Sistema» respeta la preferencia de tu equipo.",
+        "motionSystem": "Sistema",
+        "motionAlways": "Siempre",
+        "motionNever": "Desactivado",
+        "saveError": "Se aplicó localmente, pero no se pudo sincronizar con el servidor."
+      }
     },
     "managedProfile": {
       "note": "Gestionado por tu organización.",

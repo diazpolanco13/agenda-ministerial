@@ -36,6 +36,19 @@ export const DEFAULT_STORED_SETTINGS: StoredInstanceSettings = {
 
 type Env = Record<string, string | undefined>;
 
+function parseDisabledIntegrationsEnv(
+  raw: string | undefined,
+): string[] | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (trimmed.toLowerCase() === "none") return [];
+  return trimmed
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 /**
  * Apply environment overrides. Only `"true"` locks a setting: deployments that
  * set these variables to `"false"` keep the database value.
@@ -52,8 +65,17 @@ export function resolveInstanceSettings(
   if (passwordLocked) lockedByEnv.push("passwordRegistrationEnabled");
   if (workspaceLocked) lockedByEnv.push("workspaceCreationRestricted");
 
+  const envDisabled = parseDisabledIntegrationsEnv(
+    env.AGENDA_DISABLE_INTEGRATIONS,
+  );
+  const disabledIntegrations =
+    envDisabled === null
+      ? stored.disabledIntegrations
+      : [...new Set([...stored.disabledIntegrations, ...envDisabled])].sort();
+
   return {
     ...stored,
+    disabledIntegrations,
     instanceName: stored.instanceName?.trim() || DEFAULT_INSTANCE_NAME,
     registrationEnabled: registrationLocked
       ? false

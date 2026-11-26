@@ -65,6 +65,7 @@ async function createTask({
   recurrence,
   customFields,
   draftAssetIds,
+  suppressCreatedNotification = false,
 }: {
   projectId: string;
   currentUserId: string;
@@ -78,6 +79,7 @@ async function createTask({
   recurrence?: TaskRecurrence;
   customFields?: CustomFieldInput[];
   draftAssetIds?: string[];
+  suppressCreatedNotification?: boolean;
 }) {
   const resolvedStatus = status || "to-do";
   const resolvedPriority = priority || "no-priority";
@@ -174,6 +176,7 @@ async function createTask({
       .values({
         projectId,
         userId: normalizedUserId ?? null,
+        createdBy: currentUserId,
         title: title || "",
         status: resolvedStatus,
         columnId: column?.id ?? null,
@@ -251,6 +254,7 @@ async function createTask({
     currentUserId: currentUserId,
     type: "created",
     content: null,
+    ...(suppressCreatedNotification ? { suppressNotification: true } : {}),
   });
 
   return {

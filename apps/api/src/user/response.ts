@@ -49,3 +49,34 @@ export const currentUserSchema = z
     militar: militarProfileSchema.nullable(),
   })
   .openapi("CurrentUser");
+
+export const uiPreferencesSchema = z
+  .object({
+    fontScale: z.enum(["normal", "large", "xlarge", "xxlarge"]),
+    highContrast: z.boolean(),
+    reduceMotion: z.enum(["system", "always", "never"]),
+  })
+  .openapi("UiPreferences");
+
+export const savedFilterSchema = z
+  .object({
+    id: z.string(),
+    workspaceId: z.string(),
+    scope: z.string(),
+    name: z.string(),
+    filters: z.record(z.string(), z.unknown()),
+    createdAt: nullableResponseTimestamp,
+    updatedAt: nullableResponseTimestamp,
+  })
+  .openapi("SavedFilter");
+
+export const savedFilterListSchema = z
+  .array(savedFilterSchema)
+  .openapi("SavedFilterList");
+
+export const deletedSavedFilterSchema = z
+  .object({
+    deleted: z.boolean(),
+    id: z.string(),
+  })
+  .openapi("DeletedSavedFilter");

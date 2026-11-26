@@ -95,6 +95,12 @@ vi.mock("@/components/sigefanb/sigefanb-person-search", () => ({
   ),
 }));
 
+vi.mock("@/components/settings/profile/ntfy-notifications-section", () => ({
+  NtfyNotificationsSection: () => (
+    <div data-testid="ntfy-notifications-section">Notificaciones móviles</div>
+  ),
+}));
+
 const MILITAR_FIXTURE: MilitarProfile = {
   cedula: "12345678",
   nacionalidad: "V",
@@ -173,6 +179,7 @@ describe("ProfilePage (Ficha Militar)", () => {
     ).toHaveAttribute("href", "/dashboard/settings/account/notifications");
     expect(screen.getByTestId("change-password-settings")).toBeTruthy();
     expect(screen.getByTestId("active-sessions-settings")).toBeTruthy();
+    expect(screen.getByTestId("ntfy-notifications-section")).toBeTruthy();
   });
 
   it("shows a DEMO preview when a QA/demo account has no linked cedula", () => {

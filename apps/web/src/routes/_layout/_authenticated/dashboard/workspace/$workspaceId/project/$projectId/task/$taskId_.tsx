@@ -1,6 +1,6 @@
 import { TaskShortcuts } from "@/components/task/task-shortcuts";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import TaskLayout from "@/components/common/task-layout";
 import PageTitle from "@/components/page-title";
@@ -15,8 +15,8 @@ import {
 } from "@/components/task/task-page-skeleton";
 import { AlertDialogCreateHandle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import useGetActivitiesByTaskId from "@/hooks/queries/activity/use-get-activities-by-task-id";
 import useGetProject from "@/hooks/queries/project/use-get-project";
+import { TaskDetailBootstrapProvider } from "@/hooks/queries/task/task-detail-cache";
 import useGetTask from "@/hooks/queries/task/use-get-task";
 
 export const Route = createFileRoute(
@@ -26,45 +26,42 @@ export const Route = createFileRoute(
 });
 
 function RouteComponent() {
+  const { projectId, workspaceId, taskId } = Route.useParams();
+
+  return (
+    <TaskDetailBootstrapProvider taskId={taskId}>
+      <TaskPageContent
+        taskId={taskId}
+        projectId={projectId}
+        workspaceId={workspaceId}
+      />
+    </TaskDetailBootstrapProvider>
+  );
+}
+
+function TaskPageContent({
+  taskId,
+  projectId,
+  workspaceId,
+}: {
+  taskId: string;
+  projectId: string;
+  workspaceId: string;
+}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { projectId, workspaceId, taskId } = Route.useParams();
   const {
     data: task,
     isLoading: isTaskLoading,
     isError: isTaskError,
   } = useGetTask(taskId);
-  const { data: project, isLoading: isProjectLoading } = useGetProject({
+  const { data: project } = useGetProject({
     id: projectId,
     workspaceId,
   });
-  const { isLoading: isActivitiesLoading } = useGetActivitiesByTaskId(taskId);
-  const [isShikiReady, setIsShikiReady] = useState(false);
   const [deleteHandle] = useState(() => AlertDialogCreateHandle());
-  useEffect(() => {
-    let mounted = true;
 
-    void import("@/lib/shiki-highlighter")
-      .then(({ getSharedShikiHighlighter }) => getSharedShikiHighlighter())
-      .then(() => {
-        if (!mounted) return;
-        setIsShikiReady(true);
-      })
-      .catch((err) => {
-        console.error("Failed to initialize Shiki highlighter:", err);
-        if (!mounted) return;
-        // Render the task view without syntax highlighting rather than
-        // leaving the page stuck in a permanent loading state.
-        setIsShikiReady(true);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const isLoading =
-    isTaskLoading || isProjectLoading || isActivitiesLoading || !isShikiReady;
+  const isLoading = isTaskLoading && !task;
 
   const handleDeleted = () => {
     navigate({

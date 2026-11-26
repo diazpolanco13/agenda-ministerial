@@ -16,7 +16,9 @@ import { publishEvent } from "../../events";
 import { removeLabelFromGitea } from "../../plugins/gitea/utils/sync-label-to-gitea";
 import { removeLabelFromGitHub } from "../../plugins/github/utils/sync-label-to-github";
 import { removeLabelFromGitlab } from "../../plugins/gitlab/utils/sync-label-to-gitlab";
+import { assertProjectAccess } from "../../project-access/assert-project-access";
 import { assertAssignableUser } from "../../utils/assert-assignable-user";
+import moveTask from "./move-task";
 import { publishTaskMutation } from "./task-mutation-effects";
 import { getSubtaskParentProjects } from "../get-subtask-parent-projects";
 import {
@@ -31,7 +33,8 @@ type BulkOperation =
   | "delete"
   | "addLabel"
   | "removeLabel"
-  | "updateDueDate";
+  | "updateDueDate"
+  | "moveProject";
 
 async function bulkUpdateTasks({
   taskIds,
@@ -526,6 +529,39 @@ async function bulkUpdateTasks({
           userId,
           { fields: ["dueDate"] },
         );
+      break;
+    }
+
+    case "moveProject": {
+      const destinationProjectId = value?.trim();
+      if (!destinationProjectId) {
+        throw new HTTPException(400, {
+          message: "Destination project ID is required",
+        });
+      }
+
+      const destinationProject = await db.query.projectTable.findFirst({
+        where: and(
+          eq(projectTable.id, destinationProjectId),
+          eq(projectTable.workspaceId, workspaceId),
+        ),
+      });
+      if (!destinationProject) {
+        throw new HTTPException(404, { message: "Destination project not found" });
+      }
+      await assertProjectAccess(userId, destinationProjectId);
+
+      const tasksToMove = tasks.filter(
+        (task) => task.projectId !== destinationProjectId,
+      );
+      for (const task of tasksToMove) {
+        await moveTask({
+          taskId: task.id,
+          destinationProjectId,
+          currentUserId: userId,
+        });
+        updatedCount++;
+      }
       break;
     }
 

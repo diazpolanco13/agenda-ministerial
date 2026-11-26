@@ -72,6 +72,9 @@ vi.mock("@/hooks/queries/project/use-get-projects", () => ({
 vi.mock("@/hooks/queries/workspace/use-active-workspace", () => ({
   default: () => ({ data: undefined }),
 }));
+vi.mock("@/hooks/queries/config/use-get-config", () => ({
+  default: () => ({ data: { disabledIntegrations: ["github", "gitea", "gitlab"] } }),
+}));
 vi.mock(
   "@/hooks/queries/github-integration/use-get-github-integration",
   () => ({

@@ -8,6 +8,7 @@ import { type CSSProperties, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ResponsableAvatar } from "@/components/responsable-avatar";
 import { useUpdateTask } from "@/hooks/mutations/task/use-update-task";
+import { useTaskHoverPrefetch } from "@/hooks/use-task-hover-prefetch";
 import {
   AGENDA_VIVID_PALETTE,
   type AgendaColorSwatch,
@@ -104,6 +105,7 @@ export function GanttTaskBar({
 }: GanttTaskBarProps) {
   const { t } = useTranslation();
   const { mutateAsync: updateTask } = useUpdateTask();
+  const hoverPrefetch = useTaskHoverPrefetch(task.id);
   const [dragDisplay, setDragDisplay] = useState<{
     start: Date;
     end: Date;
@@ -421,6 +423,7 @@ export function GanttTaskBar({
           <button
             type="button"
             aria-label={t("tasks:gantt.taskAriaLabel", { title: task.title })}
+            {...hoverPrefetch}
             onPointerDown={handleMovePointerDown}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -515,6 +518,7 @@ export function GanttTaskBar({
           type="button"
           aria-label={t("tasks:gantt.taskAriaLabel", { title: task.title })}
           className="relative z-10 flex min-w-0 flex-1 cursor-grab touch-manipulation items-center overflow-hidden px-1.5 text-left active:cursor-grabbing"
+          {...hoverPrefetch}
           onPointerDown={handleMovePointerDown}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {

@@ -3,6 +3,7 @@ import { ThemePicker } from "@/components/account/theme-picker";
 import PageTitle from "@/components/page-title";
 import { AdvancedSettingsSwitch } from "@/components/settings/advanced-settings-switch";
 import { AutosaveNote } from "@/components/settings/autosave-note";
+import { AccessibilitySection } from "@/components/settings/preferences/accessibility-section";
 import { GeneralPreferencesSection } from "@/components/settings/preferences/general-preferences-section";
 import { TaskDetailsSection } from "@/components/settings/preferences/task-details-section";
 import { SettingsCard } from "@/components/settings/settings-card";
@@ -25,6 +26,7 @@ export function PreferencesPage() {
       <SettingsSection title={t("settings:preferencesPage.theme")}>
         <ThemePicker value={theme} onChange={setTheme} />
       </SettingsSection>
+      <AccessibilitySection />
       <GeneralPreferencesSection />
       <TaskDetailsSection />
       <SettingsSection title={t("settings:preferencesPage.advancedTitle")}>

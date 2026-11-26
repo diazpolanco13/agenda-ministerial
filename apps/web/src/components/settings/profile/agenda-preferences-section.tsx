@@ -3,7 +3,7 @@ import { ArrowRightIcon, BellIcon, ClockIcon } from "lucide-react";
 import { useState } from "react";
 import { ThemePicker } from "@/components/account/theme-picker";
 import { LanguageRow } from "@/components/settings/preferences/language-row";
-import { NtfyNotificationsPlaceholder } from "@/components/settings/profile/ntfy-notifications-placeholder";
+import { NtfyNotificationsSection } from "@/components/settings/profile/ntfy-notifications-section";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsRow } from "@/components/settings/settings-row";
 import { SettingsSection } from "@/components/settings/settings-section";
@@ -127,7 +127,7 @@ export function AgendaPreferencesSection() {
         </SettingsCard>
       </SettingsSection>
 
-      <NtfyNotificationsPlaceholder />
+      <NtfyNotificationsSection />
     </>
   );
 }

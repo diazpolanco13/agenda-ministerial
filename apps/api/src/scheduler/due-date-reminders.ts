@@ -1,6 +1,18 @@
-import { and, between, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  between,
+  eq,
+  gte,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import db from "../database";
 import {
+  agendaNtfySubscriptionTable,
   columnTable,
   projectTable,
   taskReminderSentTable,
@@ -9,8 +21,8 @@ import {
   workspaceUserTable,
 } from "../database/schema";
 import {
-  persistNotification,
   dispatchNotification,
+  persistNotification,
 } from "../notification/controllers/create-notification";
 import { workspaceIsActive } from "../workspace/archive/active-workspace-sql";
 import {
@@ -18,14 +30,37 @@ import {
   REMINDER_WINDOW_MINUTES,
 } from "./reminder-timing";
 
-type ReminderType = "configured_before" | "overdue";
+type ReminderType =
+  | "configured_before"
+  | "overdue"
+  | "due_tomorrow"
+  | "due_today";
 
 const MINUTE_MS = 60 * 1000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
+// America/Caracas is fixed UTC-4 year-round.
+const CARACAS_OFFSET_MS = 4 * 60 * MINUTE_MS;
 
 function buildWindows(now: Date) {
   // Shift the window to stored day-start timestamps, preserving indexed lookups.
   const nowMs = now.getTime() - DUE_DATE_DURATION_MS;
   const windowEnd = new Date(nowMs);
+
+  const caracasShifted = new Date(now.getTime() - CARACAS_OFFSET_MS);
+  const caracasTodayStartMs =
+    Date.UTC(
+      caracasShifted.getUTCFullYear(),
+      caracasShifted.getUTCMonth(),
+      caracasShifted.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ) + CARACAS_OFFSET_MS;
+
+  const caracasTodayStart = new Date(caracasTodayStartMs);
+  const caracasTomorrowStart = new Date(caracasTodayStartMs + DAY_MS);
+  const caracasDayAfterStart = new Date(caracasTodayStartMs + 2 * DAY_MS);
 
   return {
     upcoming: {
@@ -33,12 +68,28 @@ function buildWindows(now: Date) {
       end: windowEnd,
       type: "configured_before" as ReminderType,
       notificationType: "due_date_reminder" as const,
+      requireNtfySubscription: false,
+    },
+    dueTomorrow: {
+      start: caracasTomorrowStart,
+      end: caracasDayAfterStart,
+      type: "due_tomorrow" as ReminderType,
+      notificationType: "due_date_reminder" as const,
+      requireNtfySubscription: true,
+    },
+    dueToday: {
+      start: caracasTodayStart,
+      end: caracasTomorrowStart,
+      type: "due_today" as ReminderType,
+      notificationType: "due_date_reminder" as const,
+      requireNtfySubscription: true,
     },
     overdue: {
       end: windowEnd,
       start: new Date(nowMs - 10 * MINUTE_MS),
       type: "overdue" as ReminderType,
       notificationType: "task_overdue" as const,
+      requireNtfySubscription: false,
     },
   };
 }
@@ -47,8 +98,9 @@ async function getTasksNeedingReminder(
   windowStart: Date,
   windowEnd: Date,
   reminderType: ReminderType,
+  requireNtfySubscription: boolean,
 ) {
-  const results = await db
+  const baseQuery = db
     .select({
       id: taskTable.id,
       title: taskTable.title,
@@ -78,28 +130,45 @@ async function getTasksNeedingReminder(
         eq(taskReminderSentTable.taskId, taskTable.id),
         eq(taskReminderSentTable.reminderType, reminderType),
       ),
-    )
-    .where(
-      and(
-        isNotNull(taskTable.userId),
-        isNotNull(taskTable.dueDate),
-        reminderType === "configured_before"
-          ? sql`${taskTable.dueDate} - (COALESCE(${userNotificationPreferenceTable.dueDateReminderLeadTimeMinutes}, 1440) * interval '1 minute') BETWEEN ${windowStart.toISOString()} AND ${windowEnd.toISOString()}`
-          : between(taskTable.dueDate, windowStart, windowEnd),
-        isNull(taskReminderSentTable.id),
-        or(
-          isNull(userNotificationPreferenceTable.id),
-          eq(userNotificationPreferenceTable.dueDateReminderEnabled, true),
-        ),
-        // Exclude tasks in final columns (completed); include tasks with no column
-        or(isNull(columnTable.isFinal), eq(columnTable.isFinal, false)),
-        // Archived tasks keep their due date but should not notify anyone
-        ne(taskTable.status, "archived"),
-        workspaceIsActive(projectTable.workspaceId),
-      ),
     );
 
-  return results;
+  const joinedQuery = requireNtfySubscription
+    ? baseQuery.innerJoin(
+        agendaNtfySubscriptionTable,
+        and(
+          eq(agendaNtfySubscriptionTable.userId, taskTable.userId),
+          eq(agendaNtfySubscriptionTable.enabled, true),
+        ),
+      )
+    : baseQuery;
+
+  const dateCondition =
+    reminderType === "configured_before"
+      ? sql`${taskTable.dueDate} - (COALESCE(${userNotificationPreferenceTable.dueDateReminderLeadTimeMinutes}, 1440) * interval '1 minute') BETWEEN ${windowStart.toISOString()} AND ${windowEnd.toISOString()}`
+      : reminderType === "overdue"
+        ? between(taskTable.dueDate, windowStart, windowEnd)
+        : and(
+            gte(taskTable.dueDate, windowStart),
+            lt(taskTable.dueDate, windowEnd),
+          );
+
+  return joinedQuery.where(
+    and(
+      isNotNull(taskTable.userId),
+      isNotNull(taskTable.dueDate),
+      dateCondition,
+      isNull(taskReminderSentTable.id),
+      or(
+        isNull(userNotificationPreferenceTable.id),
+        eq(userNotificationPreferenceTable.dueDateReminderEnabled, true),
+      ),
+      // Exclude tasks in final columns (completed); include tasks with no column
+      or(isNull(columnTable.isFinal), eq(columnTable.isFinal, false)),
+      // Archived tasks keep their due date but should not notify anyone
+      ne(taskTable.status, "archived"),
+      workspaceIsActive(projectTable.workspaceId),
+    ),
+  );
 }
 
 async function processReminder(
@@ -132,6 +201,13 @@ async function processReminder(
       .returning();
     if (!claimed) return null;
 
+    const leadTimeMinutes =
+      reminderType === "due_tomorrow"
+        ? 1440
+        : reminderType === "due_today"
+          ? 0
+          : (task.leadTimeMinutes ?? 1440);
+
     const created = await persistNotification(
       {
         userId: task.userId!,
@@ -139,7 +215,7 @@ async function processReminder(
         eventData: {
           taskTitle: task.title,
           reminderType,
-          leadTimeMinutes: task.leadTimeMinutes ?? 1440,
+          leadTimeMinutes,
           dueDate: task.dueDate?.toISOString() ?? null,
         },
         resourceId: task.id,
@@ -167,6 +243,7 @@ export async function checkDueDateReminders(): Promise<{ degraded: boolean }> {
         window.start,
         window.end,
         window.type,
+        window.requireNtfySubscription,
       );
 
       for (const task of tasks) {

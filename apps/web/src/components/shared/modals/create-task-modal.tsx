@@ -900,7 +900,7 @@ function CreateTaskModalContent({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="kaneo-create-task-modal max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="kaneo-create-task-modal w-[calc(100vw-1.5rem)] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
         showCloseButton={false}
         instant={instant}
       >

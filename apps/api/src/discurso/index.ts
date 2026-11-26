@@ -7,6 +7,7 @@ import { discursoBorradorTable, projectTable } from "../database/schema";
 import { ApiError } from "../errors/api-error";
 import assignLabelToTask from "../label/controllers/assign-label-to-task";
 import createLabel from "../label/controllers/create-label";
+import createNotification from "../notification/controllers/create-notification";
 import {
   apiRouter,
   createRoute,
@@ -659,9 +660,27 @@ export const discurso = apiRouter()
         dueDate,
         description: descriptionParts.join("\n"),
         priority: orden.prioridad,
+        suppressCreatedNotification: true,
       });
 
       await assignLabelToTask(ordenLabel.id, createdTask.id, userId);
+
+      if (resolvedUserId && resolvedUserId !== userId) {
+        await createNotification({
+          userId: resolvedUserId,
+          type: "minister_order",
+          title: "Orden del Ministro",
+          content: `Se te asignó la orden «${createdTask.title}» (${tituloActual}).`,
+          eventData: {
+            taskTitle: createdTask.title,
+            origenTitulo: tituloActual,
+            projectId: targetProjectId,
+            workspaceId: borrador.workspaceId,
+          },
+          resourceId: createdTask.id,
+          resourceType: "task",
+        });
+      }
 
       await createActivity(
         createdTask.id,

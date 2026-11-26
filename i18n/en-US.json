@@ -1220,7 +1220,26 @@
       "priority": "Priority",
       "projectBackgrounds": "Project backgrounds",
       "projectBackgroundsDescription": "Show the image a project sets behind its board.",
-      "advancedTitle": "Advanced"
+      "advancedTitle": "Advanced",
+      "accessibility": {
+        "title": "Accessibility & Reading",
+        "fontSizeTitle": "Text size",
+        "fontSizeDescription": "Scale typography across the app without breaking layouts.",
+        "scaleNormal": "Normal",
+        "scaleLarge": "Large",
+        "scaleXLarge": "Very large",
+        "scaleExtra": "Extra",
+        "previewTitle": "Preview: General Staff Briefing",
+        "previewDescription": "Secondary text, labels and indicators scale proportionally.",
+        "highContrastTitle": "High contrast",
+        "highContrastDescription": "Strengthen borders, muted text, and focus rings in light and dark modes.",
+        "reduceMotionTitle": "Reduce motion",
+        "reduceMotionDescription": "Disable transitions and animations. System respects your OS preference.",
+        "motionSystem": "System",
+        "motionAlways": "Always",
+        "motionNever": "Off",
+        "saveError": "Applied locally, but could not sync with the server."
+      }
     },
     "managedProfile": {
       "note": "Managed by your organization.",

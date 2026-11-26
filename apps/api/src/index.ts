@@ -68,6 +68,7 @@ import mcpRoutes, { mcpWellKnownRoutes } from "./mcp";
 import { migrateColumns } from "./migrations/column-migration";
 import notification from "./notification";
 import notificationPreferences from "./notification-preferences";
+import ntfy from "./ntfy";
 import oauth from "./oauth";
 import { createRoute, errorResponse, jsonResponse, z } from "./openapi";
 import { initializePlugins, integrationPlugins } from "./plugins";
@@ -835,6 +836,7 @@ export function createApp() {
     "/notification-preferences",
     notificationPreferences,
   );
+  const ntfyApi = api.route("/ntfy", ntfy);
   const searchApi = api.route("/search", search);
   // Turned-off providers: registered before their routes so they run first.
   // Inbound provider webhooks are mounted earlier and answer on their own;
@@ -1012,6 +1014,7 @@ export function createApp() {
     labelApi,
     notificationApi,
     notificationPreferencesApi,
+    ntfyApi,
     projectApi,
     calendarFeedApi,
     publicProjectApi,

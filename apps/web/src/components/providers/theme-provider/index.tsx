@@ -1,8 +1,10 @@
 import { useEffect } from "react";
+import { applyAccessibilityToDocument } from "@/lib/accessibility";
 import { useUserPreferencesStore } from "@/store/user-preferences";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { theme } = useUserPreferencesStore();
+  const { theme, fontScale, highContrast, reduceMotion } =
+    useUserPreferencesStore();
 
   useEffect(() => {
     const root = document.documentElement;
@@ -29,6 +31,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, [theme]);
+
+  useEffect(() => {
+    applyAccessibilityToDocument({ fontScale, highContrast, reduceMotion });
+
+    if (typeof window.matchMedia !== "function") return;
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handleMotionChange = () => {
+      applyAccessibilityToDocument({ fontScale, highContrast, reduceMotion });
+    };
+    motionQuery.addEventListener("change", handleMotionChange);
+    return () => motionQuery.removeEventListener("change", handleMotionChange);
+  }, [fontScale, highContrast, reduceMotion]);
 
   return <>{children}</>;
 }

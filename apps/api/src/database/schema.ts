@@ -702,6 +702,10 @@ export const taskTable = pgTable(
       onDelete: "set null",
       onUpdate: "cascade",
     }),
+    createdBy: text("created_by").references(() => userTable.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
     title: text("title").notNull(),
     description: text("description"),
     status: text("status").notNull().default("to-do"),
@@ -730,6 +734,7 @@ export const taskTable = pgTable(
       ),
     index("task_dueDate_idx").on(table.dueDate),
     index("task_assigneeId_idx").on(table.userId),
+    index("task_createdBy_idx").on(table.createdBy),
     index("task_columnId_idx").on(table.columnId),
     unique("task_project_number_unique").on(table.projectId, table.number),
   ],
@@ -1735,5 +1740,108 @@ export const discursoBorradorTable = pgTable(
     index("discurso_borrador_workspace_idx").on(table.workspaceId),
     index("discurso_borrador_created_by_idx").on(table.createdBy),
     index("discurso_borrador_estado_idx").on(table.estado),
+  ],
+);
+
+// Preferencias de accesibilidad e interfaz por usuario (tabla aditiva 1:1 con user).
+export const userUiPreferenceTable = pgTable("user_ui_preference", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => userTable.id, {
+      onDelete: "cascade",
+      onUpdate: "cascade",
+    }),
+  fontScale: text("font_scale").notNull().default("normal"),
+  highContrast: boolean("high_contrast").notNull().default(false),
+  reduceMotion: text("reduce_motion").notNull().default("system"),
+  createdAt: timestamp("created_at", { mode: "date" })
+    .default(utcNow)
+    .notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" })
+    .default(utcNow)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+// Vistas / filtros guardados por usuario en Mis tareas y Delegadas.
+export const userSavedFilterTable = pgTable(
+  "user_saved_filter",
+  {
+    id: text("id")
+      .$defaultFn(() => createId())
+      .primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => userTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaceTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    scope: text("scope").notNull().default("my-tasks"),
+    name: text("name").notNull(),
+    filters: jsonb("filters")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { mode: "date" })
+      .default(utcNow)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+      .default(utcNow)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("user_saved_filter_user_ws_scope_idx").on(
+      table.userId,
+      table.workspaceId,
+      table.scope,
+    ),
+  ],
+);
+
+// Suscripción móvil institucional vía ntfy (credenciales cifradas con AES-256-GCM).
+export const agendaNtfySubscriptionTable = pgTable(
+  "agenda_ntfy_subscription",
+  {
+    id: text("id")
+      .$defaultFn(() => createId())
+      .primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .unique()
+      .references(() => userTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    enabled: boolean("enabled").default(false).notNull(),
+    topicEncrypted: text("topic_encrypted").notNull(),
+    usernameEncrypted: text("username_encrypted").notNull(),
+    passwordEncrypted: text("password_encrypted").notNull(),
+    eventTaskAssigned: boolean("event_task_assigned").default(true).notNull(),
+    eventMentionComment: boolean("event_mention_comment")
+      .default(true)
+      .notNull(),
+    eventDueTomorrow: boolean("event_due_tomorrow").default(true).notNull(),
+    eventDueToday: boolean("event_due_today").default(true).notNull(),
+    eventOverdue: boolean("event_overdue").default(true).notNull(),
+    eventMinisterOrder: boolean("event_minister_order").default(true).notNull(),
+    credentialsVersion: integer("credentials_version").default(1).notNull(),
+    lastTestAt: timestamp("last_test_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" })
+      .default(utcNow)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+      .default(utcNow)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("agenda_ntfy_subscription_enabled_idx").on(table.enabled),
   ],
 );

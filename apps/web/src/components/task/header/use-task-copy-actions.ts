@@ -7,6 +7,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import useGetConfig from "@/hooks/queries/config/use-get-config";
 import useGetGiteaIntegration from "@/hooks/queries/gitea-integration/use-get-gitea-integration";
 import useGetGithubIntegration from "@/hooks/queries/github-integration/use-get-github-integration";
 import useGetGitlabIntegration from "@/hooks/queries/gitlab-integration/use-get-gitlab-integration";
@@ -35,9 +36,18 @@ export function useTaskCopyActions({
   const { data: project } = useGetProject({ id: projectId, workspaceId });
   const { data: workspace } = useActiveWorkspace();
   const { data: workspaceProjects = [] } = useGetProjects({ workspaceId });
-  const { data: github } = useGetGithubIntegration(projectId);
-  const { data: gitea } = useGetGiteaIntegration(projectId);
-  const { data: gitlab } = useGetGitlabIntegration(projectId);
+  const { data: config } = useGetConfig();
+  const disabledIntegrations = config?.disabledIntegrations ?? [];
+  const canQueryIntegrations = Boolean(config);
+  const { data: github } = useGetGithubIntegration(projectId, {
+    enabled: canQueryIntegrations && !disabledIntegrations.includes("github"),
+  });
+  const { data: gitea } = useGetGiteaIntegration(projectId, {
+    enabled: canQueryIntegrations && !disabledIntegrations.includes("gitea"),
+  });
+  const { data: gitlab } = useGetGitlabIntegration(projectId, {
+    enabled: canQueryIntegrations && !disabledIntegrations.includes("gitlab"),
+  });
 
   const copy = async (text: string, message: string, icon: LucideIcon) => {
     if (!text) return;

@@ -42,4 +42,17 @@ describe("resolveInstanceSettings", () => {
       ],
     });
   });
+
+  it("merges AGENDA_DISABLE_INTEGRATIONS without duplicates", () => {
+    const resolved = resolveInstanceSettings(
+      { ...DEFAULT_STORED_SETTINGS, disabledIntegrations: ["slack"] },
+      { AGENDA_DISABLE_INTEGRATIONS: "github, gitea, gitlab, slack" },
+    );
+    expect(resolved.disabledIntegrations).toEqual([
+      "gitea",
+      "github",
+      "gitlab",
+      "slack",
+    ]);
+  });
 });

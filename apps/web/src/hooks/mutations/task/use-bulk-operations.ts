@@ -150,6 +150,23 @@ export function useBulkOperations() {
     onSuccess: invalidateCommon,
   });
 
+  const bulkMoveProject = useMutation({
+    mutationFn: async ({
+      taskIds,
+      destinationProjectId,
+    }: {
+      taskIds: string[];
+      destinationProjectId: string;
+    }) => {
+      await bulkOperation({
+        taskIds,
+        operation: "moveProject",
+        value: destinationProjectId,
+      });
+    },
+    onSuccess: invalidateCommon,
+  });
+
   return {
     bulkDelete: bulkDelete.mutateAsync,
     isDeleting: bulkDelete.isPending,
@@ -161,5 +178,6 @@ export function useBulkOperations() {
     bulkPriority: bulkPriority.mutateAsync,
     bulkAddLabel: bulkAddLabel.mutateAsync,
     bulkDueDate: bulkDueDate.mutateAsync,
+    bulkMoveProject: bulkMoveProject.mutateAsync,
   };
 }

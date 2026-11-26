@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type PointerEvent, useEffect, useRef } from "react";
 import { prefetchTask } from "@/hooks/queries/task/prefetch-task";
 
-const HOVER_DELAY_MS = 120;
+const HOVER_DELAY_MS = 100;
 
 export function useTaskHoverPrefetch(taskId: string) {
   const queryClient = useQueryClient();
@@ -10,14 +10,22 @@ export function useTaskHoverPrefetch(taskId: string) {
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
+  const schedulePrefetch = () => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      void prefetchTask(queryClient, taskId);
+    }, HOVER_DELAY_MS);
+  };
+
+  const cancelPrefetch = () => window.clearTimeout(timer.current);
+
   return {
     onPointerEnter: (event: PointerEvent) => {
       if (event.pointerType !== "mouse") return;
-      window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => {
-        void prefetchTask(queryClient, taskId);
-      }, HOVER_DELAY_MS);
+      schedulePrefetch();
     },
-    onPointerLeave: () => window.clearTimeout(timer.current),
+    onPointerLeave: cancelPrefetch,
+    onFocus: schedulePrefetch,
+    onBlur: cancelPrefetch,
   };
 }

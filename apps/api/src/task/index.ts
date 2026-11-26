@@ -41,11 +41,14 @@ import deleteTask from "./controllers/delete-task";
 import duplicateTask from "./controllers/duplicate-task";
 import exportTasks from "./controllers/export-tasks";
 import getAssignedTasks from "./controllers/get-assigned-tasks";
+import { getDelegatedTasks } from "./controllers/get-delegated-tasks";
 import getTaskByTicketId from "./controllers/get-task-by-ticket-id";
+import getTaskDetail from "./controllers/get-task-detail";
 import getTask from "./controllers/get-task";
 import getTasks from "./controllers/get-tasks";
 import importTasks from "./controllers/import-tasks";
 import moveTask from "./controllers/move-task";
+import { remindDelegatedTask } from "./controllers/remind-delegated-task";
 import reorderTasks from "./controllers/reorder-tasks";
 import {
   stageTaskAssetUpload,
@@ -75,12 +78,15 @@ import {
   assignedTasksSchema,
   boardSchema,
   bulkResultSchema,
+  delegatedTasksSchema,
   descriptionMatchesSchema,
   descriptionPageSchema,
   finalizedAssetSchema,
   imageUploadSchema,
   moveTaskResultSchema,
+  remindDelegatedTaskSchema,
   taskByTicketIdSchema,
+  taskDetailSchema,
   taskExportSchema,
   taskImportResultSchema,
   taskSchema,
@@ -90,6 +96,7 @@ import {
   assignedTasksQuery,
   bulkUpdateBody,
   createTaskBody,
+  delegatedTasksQuery,
   descriptionMatchesQuery,
   descriptionPageQuery,
   duplicateTaskBody,
@@ -101,6 +108,7 @@ import {
   listTasksQuery,
   moveTaskBody,
   projectIdParam,
+  remindDelegatedTaskBody,
   reorderTasksBody,
   taskParam,
   ticketIdParam,
@@ -133,6 +141,55 @@ const listAssignedTasksRoute = createRoute({
     400: errorResponse("Invalid workspace ID or query parameters"),
     403: errorResponse("Missing project:read or task:read permission"),
     404: errorResponse("Workspace not found"),
+  },
+});
+
+const listDelegatedTasksRoute = createRoute({
+  method: "get",
+  operationId: "listDelegatedTasks",
+  path: "/delegated",
+  tags: ["Tasks"],
+  summary: "List delegated tasks created by caller",
+  description:
+    "Get tasks created by the caller and assigned to another person across accessible projects.",
+  middleware: [
+    workspaceAccess.fromQuery(),
+    requireWorkspacePermission({ project: ["read"], task: ["read"] }),
+  ] as const,
+  request: { query: delegatedTasksQuery },
+  responses: {
+    200: jsonResponse("Tasks delegated by the caller", delegatedTasksSchema),
+    400: errorResponse("Invalid workspace ID or query parameters"),
+    403: errorResponse("Missing project:read or task:read permission"),
+    404: errorResponse("Workspace not found"),
+  },
+});
+
+const remindDelegatedTaskRoute = createRoute({
+  method: "post",
+  operationId: "remindDelegatedTask",
+  path: "/delegated/{id}/remind",
+  tags: ["Tasks"],
+  summary: "Send a follow-up reminder for a delegated task",
+  description:
+    "Notify the assignee in-app (and via ntfy if enabled) about a delegated task.",
+  middleware: [
+    workspaceAccess.fromTask(),
+    requireWorkspacePermission({ task: ["read"] }),
+  ] as const,
+  request: {
+    params: taskParam,
+    body: {
+      required: false,
+      content: { "application/json": { schema: remindDelegatedTaskBody } },
+    },
+  },
+  responses: {
+    200: jsonResponse("Reminder sent", remindDelegatedTaskSchema),
+    400: errorResponse("Task has no assignee or assignee is the caller"),
+    403: errorResponse("Not authorized to remind on this task"),
+    404: errorResponse("Task not found"),
+    429: errorResponse("Reminder sent too recently"),
   },
 });
 
@@ -343,6 +400,28 @@ const duplicateTaskRoute = createRoute({
     404: errorResponse("Task or project not found"),
     409: errorResponse("Task column has reached its capacity"),
     503: errorResponse("Unable to copy task attachments"),
+  },
+});
+
+const getTaskDetailRoute = createRoute({
+  method: "get",
+  operationId: "getTaskDetail",
+  path: "/{id}/detalle",
+  tags: ["Tasks"],
+  summary: "Get aggregated task detail",
+  description:
+    "Get a task along with its activities, relations, labels, external links, time entries, and custom field values in a single request.",
+  middleware: [
+    workspaceAccess.fromTask(),
+    requireWorkspacePermission({ task: ["read"] }),
+  ] as const,
+  request: {
+    params: taskParam,
+  },
+  responses: {
+    200: jsonResponse("Aggregated task details", taskDetailSchema),
+    403: errorResponse("No access to the project, or missing read permission"),
+    404: errorResponse("Task not found"),
   },
 });
 
@@ -864,13 +943,45 @@ const task = apiRouter<BaseVariables & { workspaceId: string }>()
   })
   // Registered ahead of the `/{id}` routes, which would otherwise claim it.
   .openapi(listAssignedTasksRoute, async (c) => {
-    const { workspaceId, countOnly } = c.req.valid("query");
+    const { workspaceId, countOnly, includeCompleted, allWorkspaces } =
+      c.req.valid("query");
     return c.json(
       await getAssignedTasks(
         workspaceId,
         c.get("userId"),
         countOnly === "true",
+        {
+          includeCompleted: includeCompleted === "true",
+          allWorkspaces: allWorkspaces === "true",
+        },
       ),
+      200,
+    );
+  })
+  .openapi(listDelegatedTasksRoute, async (c) => {
+    const { workspaceId, includeCompleted, allWorkspaces } =
+      c.req.valid("query");
+    return c.json(
+      await getDelegatedTasks(workspaceId, c.get("userId"), {
+        includeCompleted: includeCompleted !== "false",
+        allWorkspaces: allWorkspaces === "true",
+      }),
+      200,
+    );
+  })
+  .openapi(remindDelegatedTaskRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const body = await c.req.json().catch(() => ({}));
+    const parsed = remindDelegatedTaskBody.safeParse(body);
+    const message = parsed.success ? parsed.data.message : undefined;
+    const canAssign = await hasWorkspacePermission(c, { task: ["assign"] });
+    return c.json(
+      await remindDelegatedTask({
+        taskId: id,
+        currentUserId: c.get("userId"),
+        canAssign,
+        message,
+      }),
       200,
     );
   })
@@ -1004,6 +1115,12 @@ const task = apiRouter<BaseVariables & { workspaceId: string }>()
       ),
       200,
     );
+  })
+  .openapi(getTaskDetailRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const workspaceId = c.get("workspaceId") ?? "";
+    const detail = await getTaskDetail(id, workspaceId, c.get("userId"));
+    return c.json(detail, 200);
   })
   .openapi(getTaskRoute, async (c) => {
     const { id } = c.req.valid("param");

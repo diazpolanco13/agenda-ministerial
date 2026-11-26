@@ -14,6 +14,8 @@ export function useGetColumns(
     queryKey: ["columns", projectId],
     queryFn: () => getColumns(projectId),
     enabled: !!projectId,
+    staleTime:
+      options.refreshOnMount || options.refreshWhileVisible ? 0 : 30_000,
     ...(options.refreshOnMount || options.refreshWhileVisible
       ? {
           refetchOnMount: "always" as const,

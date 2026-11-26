@@ -1,13 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
-import getAssignedTasks from "@/fetchers/task/get-assigned-tasks";
+import getAssignedTasks, {
+  type GetAssignedTasksOptions,
+} from "@/fetchers/task/get-assigned-tasks";
 
 function useGetAssignedTasks(
   workspaceId: string | undefined,
   countOnly = false,
+  options?: GetAssignedTasksOptions,
 ) {
+  const includeCompleted = Boolean(options?.includeCompleted);
+  const allWorkspaces = Boolean(options?.allWorkspaces);
+
   return useQuery({
-    queryKey: ["assigned-tasks", workspaceId, { countOnly }],
-    queryFn: () => getAssignedTasks(workspaceId ?? "", countOnly),
+    queryKey: [
+      "assigned-tasks",
+      workspaceId,
+      { countOnly, includeCompleted, allWorkspaces },
+    ],
+    queryFn: () => getAssignedTasks(workspaceId ?? "", countOnly, options),
     enabled: Boolean(workspaceId),
     // The app default skips refetching on mount; these lists go stale while
     // the user works elsewhere.

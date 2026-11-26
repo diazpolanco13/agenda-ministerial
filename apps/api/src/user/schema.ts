@@ -15,3 +15,25 @@ export const uploadAvatarBody = z.object({
 export const userSessionParam = z.object({
   sessionId: z.string().min(1).max(200),
 });
+
+export const uiPreferencesBody = z.object({
+  fontScale: z.enum(["normal", "large", "xlarge", "xxlarge"]).optional(),
+  highContrast: z.boolean().optional(),
+  reduceMotion: z.enum(["system", "always", "never"]).optional(),
+});
+
+export const savedFiltersQuery = z.object({
+  workspaceId: z.string().min(1),
+  scope: z.enum(["my-tasks", "delegated"]).optional(),
+});
+
+export const createSavedFilterBody = z.object({
+  workspaceId: z.string().min(1),
+  scope: z.enum(["my-tasks", "delegated"]).default("my-tasks"),
+  name: z.string().trim().min(1).max(80),
+  filters: z.record(z.string(), z.unknown()),
+});
+
+export const savedFilterParam = z.object({
+  id: z.string().min(1).max(128),
+});

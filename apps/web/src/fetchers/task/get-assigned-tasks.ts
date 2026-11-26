@@ -8,10 +8,28 @@ export type AssignedTasks = InferResponseType<
 >;
 
 export type AssignedTask = AssignedTasks["tasks"][number];
+export type MyTasksKpis = NonNullable<AssignedTasks["kpis"]>;
+export type ProjectColumnSummary = NonNullable<
+  AssignedTasks["columnsByProject"]
+>[string][number];
 
-async function getAssignedTasks(workspaceId: string, countOnly = false) {
+export type GetAssignedTasksOptions = {
+  includeCompleted?: boolean;
+  allWorkspaces?: boolean;
+};
+
+async function getAssignedTasks(
+  workspaceId: string,
+  countOnly = false,
+  options: GetAssignedTasksOptions = {},
+) {
   const response = await client.task.assigned.$get({
-    query: { workspaceId, countOnly: countOnly ? "true" : "false" },
+    query: {
+      workspaceId,
+      countOnly: countOnly ? "true" : "false",
+      ...(options.includeCompleted ? { includeCompleted: "true" } : {}),
+      ...(options.allWorkspaces ? { allWorkspaces: "true" } : {}),
+    },
   });
 
   if (!response.ok) {

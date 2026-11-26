@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm";
 import {
   accountTable,
   activityTable,
+  agendaNtfySubscriptionTable,
   apikeyTable,
   assetTable,
   columnTable,
@@ -27,7 +28,9 @@ import {
   userNotificationPreferenceTable,
   userNotificationWorkspaceProjectTable,
   userNotificationWorkspaceRuleTable,
+  userSavedFilterTable,
   userTable,
+  userUiPreferenceTable,
   verificationTable,
   workflowRuleTable,
   workspaceRoleTable,
@@ -40,7 +43,8 @@ export const userTableRelations = relations(userTable, ({ many, one }) => ({
   accounts: many(accountTable),
   teamMembers: many(teamMemberTable),
   workspaceMemberships: many(workspaceUserTable),
-  assignedTasks: many(taskTable),
+  assignedTasks: many(taskTable, { relationName: "taskAssignee" }),
+  createdTasks: many(taskTable, { relationName: "taskCreator" }),
   timeEntries: many(timeEntryTable),
   activities: many(activityTable),
   comments: many(commentTable),
@@ -48,9 +52,12 @@ export const userTableRelations = relations(userTable, ({ many, one }) => ({
   notifications: many(notificationTable),
   notificationPreference: one(userNotificationPreferenceTable),
   notificationWorkspaceRules: many(userNotificationWorkspaceRuleTable),
+  savedFilters: many(userSavedFilterTable),
+  uiPreference: one(userUiPreferenceTable),
   sentInvitations: many(invitationTable),
   apikeys: many(apikeyTable),
   militarPerfil: one(militarPerfilTable),
+  ntfySubscription: one(agendaNtfySubscriptionTable),
 }));
 
 export const militarPerfilTableRelations = relations(
@@ -156,6 +163,12 @@ export const taskTableRelations = relations(taskTable, ({ one, many }) => ({
   assignee: one(userTable, {
     fields: [taskTable.userId],
     references: [userTable.id],
+    relationName: "taskAssignee",
+  }),
+  creator: one(userTable, {
+    fields: [taskTable.createdBy],
+    references: [userTable.id],
+    relationName: "taskCreator",
   }),
   column: one(columnTable, {
     fields: [taskTable.columnId],
@@ -442,6 +455,40 @@ export const discursoBorradorTableRelations = relations(
     }),
     creator: one(userTable, {
       fields: [discursoBorradorTable.createdBy],
+      references: [userTable.id],
+    }),
+  }),
+);
+
+export const userUiPreferenceTableRelations = relations(
+  userUiPreferenceTable,
+  ({ one }) => ({
+    user: one(userTable, {
+      fields: [userUiPreferenceTable.userId],
+      references: [userTable.id],
+    }),
+  }),
+);
+
+export const userSavedFilterTableRelations = relations(
+  userSavedFilterTable,
+  ({ one }) => ({
+    user: one(userTable, {
+      fields: [userSavedFilterTable.userId],
+      references: [userTable.id],
+    }),
+    workspace: one(workspaceTable, {
+      fields: [userSavedFilterTable.workspaceId],
+      references: [workspaceTable.id],
+    }),
+  }),
+);
+
+export const agendaNtfySubscriptionTableRelations = relations(
+  agendaNtfySubscriptionTable,
+  ({ one }) => ({
+    user: one(userTable, {
+      fields: [agendaNtfySubscriptionTable.userId],
       references: [userTable.id],
     }),
   }),

@@ -1,4 +1,10 @@
+import { activityListSchema } from "../activity/response";
+import { customFieldValueListSchema } from "../custom-field/response";
+import { externalLinkListSchema } from "../external-link/response";
+import { labelListSchema } from "../label/response";
 import { nullableResponseTimestamp, responseTimestamp, z } from "../openapi";
+import { taskRelationWithTasksListSchema } from "../task-relation/response";
+import { timeEntryListSchema } from "../time-entry/response";
 import { taskRecurrenceSchema } from "./recurrence/schema";
 
 const priorityDescription = "One of: no-priority, low, medium, high, urgent.";
@@ -297,6 +303,24 @@ export const descriptionMatchesSchema = z
   .object({ ids: z.array(z.string()), nextCursor: z.string().nullable() })
   .openapi("TaskDescriptionMatches");
 
+export const projectColumnSummarySchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  icon: z.string().nullable(),
+  isFinal: z.boolean(),
+  position: z.number(),
+});
+
+export const myTasksKpisSchema = z.object({
+  overdueCount: z.number(),
+  dueTodayCount: z.number(),
+  completedThisWeekCount: z.number(),
+  completedOnTime30d: z.number(),
+  completedWithDue30d: z.number(),
+  onTimeRate30d: z.number().nullable(),
+});
+
 export const assignedTasksSchema = z
   .object({
     tasks: z.array(
@@ -304,18 +328,29 @@ export const assignedTasksSchema = z
         .object({
           id: z.string(),
           projectId: z.string(),
+          workspaceId: z.string().optional(),
+          workspaceName: z.string().optional(),
           number: z.number().nullable(),
           title: z.string(),
           status: z.string().openapi({
             description: "The slug of the column the task sits in.",
           }),
+          columnId: z.string().nullable().optional(),
+          position: z.number().nullable().optional(),
           statusName: z.string().nullable().openapi({
             description:
               "The column's display name. Null for tasks outside a column, such as planned ones.",
           }),
           statusIcon: z.string().nullable(),
+          isFinal: z.boolean().optional(),
           priority: z.string().openapi({ description: priorityDescription }),
+          startDate: nullableResponseTimestamp.optional(),
           dueDate: nullableResponseTimestamp,
+          createdAt: responseTimestamp.optional(),
+          updatedAt: responseTimestamp.optional(),
+          userId: z.string().nullable().optional(),
+          assigneeName: z.string().nullable().optional(),
+          assigneeImage: z.string().nullable().optional(),
           projectName: z.string(),
           projectSlug: z.string(),
           projectIcon: z.string().nullable(),
@@ -331,5 +366,77 @@ export const assignedTasksSchema = z
       description:
         "All open tasks assigned to the caller, including any beyond the first 100 returned.",
     }),
+    kpis: myTasksKpisSchema.optional(),
+    columnsByProject: z
+      .record(z.string(), z.array(projectColumnSummarySchema))
+      .optional(),
   })
   .openapi("AssignedTasks");
+
+export const delegatedTasksSchema = z
+  .object({
+    tasks: z.array(
+      z.object({
+        id: z.string(),
+        projectId: z.string(),
+        workspaceId: z.string(),
+        workspaceName: z.string(),
+        number: z.number().nullable(),
+        title: z.string(),
+        status: z.string(),
+        columnId: z.string().nullable(),
+        statusName: z.string().nullable(),
+        statusIcon: z.string().nullable(),
+        isFinal: z.boolean(),
+        priority: z.string(),
+        startDate: nullableResponseTimestamp,
+        dueDate: nullableResponseTimestamp,
+        createdAt: responseTimestamp,
+        updatedAt: responseTimestamp,
+        projectName: z.string(),
+        projectSlug: z.string(),
+        projectIcon: z.string().nullable(),
+        userId: z.string().nullable(),
+        assigneeName: z.string().nullable(),
+        assigneeImage: z.string().nullable(),
+        assigneeCedula: z.string().nullable(),
+        assigneeGrado: z.string().nullable(),
+        assigneeComponente: z.string().nullable(),
+        assigneeUnidad: z.string().nullable(),
+        assigneeInsignia: z.string().nullable(),
+        assigneeFotoUrl: z.string().nullable(),
+        overdueDays: z.number(),
+        lastActivityAt: responseTimestamp,
+        lastActivityType: z.string().nullable(),
+        lastRemindedAt: nullableResponseTimestamp,
+        subtaskCounts: z.object({
+          completed: z.number(),
+          total: z.number(),
+        }),
+        labels: z.array(taskLabelSchema),
+      }),
+    ),
+    total: z.number(),
+    columnsByProject: z.record(z.string(), z.array(projectColumnSummarySchema)),
+  })
+  .openapi("DelegatedTasks");
+
+export const remindDelegatedTaskSchema = z
+  .object({
+    success: z.boolean(),
+    notifiedUserId: z.string(),
+    sentAt: z.string(),
+  })
+  .openapi("RemindDelegatedTaskResult");
+
+export const taskDetailSchema = z
+  .object({
+    task: taskWithAssigneeSchema,
+    activities: activityListSchema,
+    relations: taskRelationWithTasksListSchema,
+    labels: labelListSchema,
+    externalLinks: externalLinkListSchema,
+    timeEntries: timeEntryListSchema,
+    customFieldValues: customFieldValueListSchema,
+  })
+  .openapi("TaskDetailAggregate");

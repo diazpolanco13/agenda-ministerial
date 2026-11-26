@@ -21,6 +21,7 @@ export function useTaskCustomFields(taskId: string, projectId: string) {
   };
   const { data: stored = NO_VALUES } = useGetCustomFieldValuesByTask(
     taskId,
+    { enabled: fields.length > 0 },
   ) as {
     data: StoredValue[] | undefined;
   };

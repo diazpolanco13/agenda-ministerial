@@ -36,6 +36,18 @@ export const assignedTasksQuery = z.object({
     description:
       "Return only the total, with an empty tasks array, without loading task rows or labels.",
   }),
+  includeCompleted: z.enum(["true", "false"]).optional(),
+  allWorkspaces: z.enum(["true", "false"]).optional(),
+});
+
+export const delegatedTasksQuery = z.object({
+  workspaceId: z.string().min(1),
+  includeCompleted: z.enum(["true", "false"]).optional(),
+  allWorkspaces: z.enum(["true", "false"]).optional(),
+});
+
+export const remindDelegatedTaskBody = z.object({
+  message: z.string().max(400).optional(),
 });
 
 const priority = z.enum(VALID_PRIORITIES);
@@ -67,6 +79,7 @@ export const bulkUpdateBody = z.object({
     "addLabel",
     "removeLabel",
     "updateDueDate",
+    "moveProject",
   ]),
   value: z.string().nullable().optional().openapi({
     description:

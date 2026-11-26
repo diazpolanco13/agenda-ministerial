@@ -13,12 +13,22 @@ import { listActiveSessions } from "../sessions/list-active-sessions";
 import { adminAuditRequest } from "../admin/audit/admin-audit-request";
 import { boundedRequestBody } from "../utils/bounded-request-body";
 import { requireUserSession } from "../utils/require-user-session";
+import { workspaceAccess } from "../utils/workspace-access-middleware";
 import { MAX_AVATAR_BYTES, MAX_AVATAR_REQUEST_BYTES } from "./avatar";
 import deleteAvatar from "./controllers/delete-avatar";
 import getCurrentUser from "./controllers/get-current-user";
 import revokeOwnSession from "./controllers/revoke-own-session";
 import saveAvatar from "./controllers/save-avatar";
+import {
+  createSavedFilter,
+  deleteSavedFilter,
+  listSavedFilters,
+} from "./controllers/saved-filters";
 import syncSigefanbProfile from "./controllers/sync-sigefanb-profile";
+import {
+  getUiPreferences,
+  updateUiPreferences,
+} from "./controllers/ui-preferences";
 import {
   requireRemovableAvatar,
   requireUnmanagedAvatar,
@@ -27,8 +37,19 @@ import {
   avatarDeletedSchema,
   avatarSchema,
   currentUserSchema,
+  deletedSavedFilterSchema,
+  savedFilterListSchema,
+  savedFilterSchema,
+  uiPreferencesSchema,
 } from "./response";
-import { uploadAvatarBody, userSessionParam } from "./schema";
+import {
+  createSavedFilterBody,
+  savedFilterParam,
+  savedFiltersQuery,
+  uiPreferencesBody,
+  uploadAvatarBody,
+  userSessionParam,
+} from "./schema";
 
 const getCurrentUserRoute = createRoute({
   method: "get",
@@ -150,6 +171,89 @@ const revokeSessionRoute = createRoute({
   },
 });
 
+const getUiPreferencesRoute = createRoute({
+  method: "get",
+  operationId: "getUserUiPreferences",
+  path: "/ui-preferences",
+  tags: ["User"],
+  summary: "Get accessibility and UI preferences",
+  responses: {
+    200: jsonResponse("User UI preferences", uiPreferencesSchema),
+    401: errorResponse("Unauthorized"),
+  },
+});
+
+const updateUiPreferencesRoute = createRoute({
+  method: "put",
+  operationId: "updateUserUiPreferences",
+  path: "/ui-preferences",
+  tags: ["User"],
+  summary: "Update accessibility and UI preferences",
+  middleware: [requireUserSession] as const,
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: uiPreferencesBody } },
+    },
+  },
+  responses: {
+    200: jsonResponse("Updated UI preferences", uiPreferencesSchema),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Authenticated with an API key"),
+  },
+});
+
+const listSavedFiltersRoute = createRoute({
+  method: "get",
+  operationId: "listUserSavedFilters",
+  path: "/saved-filters",
+  tags: ["User"],
+  summary: "List saved filters for the current user in a workspace",
+  middleware: [workspaceAccess.fromQuery()] as const,
+  request: { query: savedFiltersQuery },
+  responses: {
+    200: jsonResponse("Saved filters", savedFilterListSchema),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("No access to workspace"),
+  },
+});
+
+const createSavedFilterRoute = createRoute({
+  method: "post",
+  operationId: "createUserSavedFilter",
+  path: "/saved-filters",
+  tags: ["User"],
+  summary: "Save a filter preset",
+  middleware: [requireUserSession, workspaceAccess.fromBody()] as const,
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: createSavedFilterBody } },
+    },
+  },
+  responses: {
+    200: jsonResponse("Created saved filter", savedFilterSchema),
+    400: errorResponse("Invalid filter or limit reached"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("No access to workspace"),
+  },
+});
+
+const deleteSavedFilterRoute = createRoute({
+  method: "delete",
+  operationId: "deleteUserSavedFilter",
+  path: "/saved-filters/{id}",
+  tags: ["User"],
+  summary: "Delete a saved filter preset",
+  middleware: [requireUserSession] as const,
+  request: { params: savedFilterParam },
+  responses: {
+    200: jsonResponse("Deleted saved filter", deletedSavedFilterSchema),
+    401: errorResponse("Unauthorized"),
+    404: errorResponse("Saved filter not found"),
+  },
+});
+
 const user = apiRouter()
   .openapi(getCurrentUserRoute, async (c) =>
     c.json(await getCurrentUser(c.get("userId")), 200),
@@ -197,6 +301,34 @@ const user = apiRouter()
       ),
       200,
     );
-  });
+  })
+  .openapi(getUiPreferencesRoute, async (c) =>
+    c.json(await getUiPreferences(c.get("userId")), 200),
+  )
+  .openapi(updateUiPreferencesRoute, async (c) =>
+    c.json(
+      await updateUiPreferences(c.get("userId"), c.req.valid("json")),
+      200,
+    ),
+  )
+  .openapi(listSavedFiltersRoute, async (c) => {
+    const { workspaceId, scope } = c.req.valid("query");
+    return c.json(
+      await listSavedFilters(c.get("userId"), workspaceId, scope),
+      200,
+    );
+  })
+  .openapi(createSavedFilterRoute, async (c) =>
+    c.json(
+      await createSavedFilter(c.get("userId"), c.req.valid("json")),
+      200,
+    ),
+  )
+  .openapi(deleteSavedFilterRoute, async (c) =>
+    c.json(
+      await deleteSavedFilter(c.get("userId"), c.req.valid("param").id),
+      200,
+    ),
+  );
 
 export default user;

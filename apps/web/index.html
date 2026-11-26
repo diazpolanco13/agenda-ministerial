@@ -20,6 +20,27 @@
   <link rel="manifest" href="/site.webmanifest" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    (function () {
+      try {
+        var factors = { normal: 1.0625, large: 1.125, xlarge: 1.25, xxlarge: 1.375 };
+        var raw = window.localStorage.getItem("agenda-accessibility");
+        var prefs = raw ? JSON.parse(raw) : null;
+        var scaleKey = prefs && factors[prefs.fontScale] ? prefs.fontScale : "normal";
+        var root = document.documentElement;
+        root.style.setProperty("--agenda-font-scale", String(factors[scaleKey]));
+        root.dataset.fontScale = scaleKey;
+        if (prefs && prefs.highContrast) root.classList.add("high-contrast");
+        var rm = prefs && prefs.reduceMotion ? prefs.reduceMotion : "system";
+        var sysReduce =
+          typeof window.matchMedia === "function" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (rm === "always" || (rm === "system" && sysReduce)) {
+          root.classList.add("reduce-motion");
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 
 <body>
