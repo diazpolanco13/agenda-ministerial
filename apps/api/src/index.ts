@@ -1072,7 +1072,9 @@ export async function startServer(
   const server = serve(
     {
       fetch: app.fetch,
-      port,
+      // AGENDA: KANEO_API_PORT / KANEO_API_HOST permiten fijar puerto e interfaz (p. ej. 127.0.0.1).
+      port: Number(process.env.KANEO_API_PORT) || port,
+      ...(process.env.KANEO_API_HOST ? { hostname: process.env.KANEO_API_HOST } : {}),
     },
     () => {
       console.log(

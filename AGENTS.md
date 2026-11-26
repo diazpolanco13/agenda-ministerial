@@ -1,3 +1,43 @@
+# AGENDA ministerial (fork de Kaneo)
+
+> Sección propia de AGENDA. Tiene prioridad sobre la guía de Kaneo que sigue más abajo (heredada de upstream).
+
+## Objetivo
+AGENDA es la app web de gestión de la agenda ministerial del comandante Carlos Díaz: calendario de actividades y
+reuniones; proyectos con tareas, responsables y fechas; seguimiento de compromisos y acuerdos (salidos de minutas);
+tablero de avance e indicadores para el ministro; usuarios con roles, permisos y confidencialidad; documentos y minutas.
+Se construye sobre Kaneo (MIT) y debe sentirse como SIGEFANB: español, sobrio, institucional.
+
+## Reglas de trabajo
+- Idioma de UI, mensajes y documentación nueva: español (Venezuela). Agregar la locale `es` en `i18n/` en vez de textos fijos.
+- No hacer commit ni push sin orden explícita de Carlos. No tocar `main` de upstream; trabajar en ramas.
+- No tocar SIGEFANB (`~/proyectos/proyecto-sigefirrhh`), sus servicios (4173/4174), su base (5433) ni Dokploy.
+- Nunca imprimir ni versionar secretos (`.env`, `apps/web/.env.local`, `~/proyectos/agenda/CREDENCIAL-INICIAL-ADMIN.txt`).
+- Cambios de esquema: migración Drizzle (`pnpm --filter @kaneo/api db:generate`), revisar el SQL y pensar en datos existentes.
+- Permisos siempre en la API (no basta con ocultar en la UI). Esto es información sensible de un despacho ministerial.
+- Mantener el fork fácil de actualizar desde upstream (`git fetch upstream`): preferir módulos nuevos a reescribir los de Kaneo.
+
+## Entorno en la Spark (desarrollo)
+- Código: `~/proyectos/agenda/aplicacion` (origin: github.com/diazpolanco13/agenda-ministerial, upstream: usekaneo/kaneo).
+- Node 24 propio en `~/.local/node24/bin` (no usar el Node 22 de SIGEFANB) y pnpm 12.18: `export PATH=$HOME/.local/node24/bin:$PATH`.
+- Servicio: `systemctl --user {status,restart} agenda-dev` (script `~/.local/libexec/agenda-dev.sh`: API `tsx watch` + web Vite con HMR).
+- Web Vite: 127.0.0.1:4185 · API Hono: 127.0.0.1:4186 · PostgreSQL 16: 127.0.0.1:5450 (`~/proyectos/agenda/dev-db`, `docker compose`).
+- Público: https://agenda.mppd.dev vía Cloudflare Tunnel `sigefanb-spark` (`/api*` → 4186, resto → 4185). Registro libre deshabilitado.
+- Variables en `.env` (raíz, 600). Ajustes locales al fork: `apps/web/vite.config.ts` (VITE_DEV_HOST/PORT, allowedHosts, HMR 443)
+  y `apps/api/src/index.ts` (KANEO_API_HOST/PORT).
+- Logs: `journalctl --user -u agenda-dev -f`.
+
+## Hoja de ruta
+1. Español y marca AGENDA (estilo SIGEFANB: shadcn/ui + Tailwind 4, que Kaneo ya usa).
+2. Módulos propios: reuniones y minutas → acuerdos/compromisos (responsable, fecha límite, estado, evidencias) → tareas.
+3. Calendario de actividades del despacho y tablero del ministro (semáforos, vencidos, indicadores).
+4. Roles institucionales (ministro, jefe de despacho, secretaría, responsable, consulta) y confidencialidad por elemento.
+5. Documentos versionados (S3 compatible: RustFS ya existe en la Spark).
+6. Futuro: integración con la BD de SIGEFANB (personal y estructura, cuentas por cédula) y con Plaud vía MCP
+   (grabación/transcripción de reuniones para generar borradores de minuta y acuerdos).
+
+---
+
 # Kaneo
 
 Kaneo is a fast, simple, self-hosted project manager. The Hono API owns domain behavior and authorization; the React app uses its typed client. PostgreSQL stores durable state, events and WebSockets keep clients current, and Redis is optional for delivery across API instances.

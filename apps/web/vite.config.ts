@@ -68,9 +68,17 @@ export default defineConfig({
       : []),
   ]),
   server: {
-    host: true,
-    hmr: true,
-    port: 5173,
+    // AGENDA: en la Spark el dev server escucha solo en 127.0.0.1 y se publica
+    // por Cloudflare Tunnel (https://agenda.mppd.dev). Sin variables, queda igual que upstream.
+    host: process.env.VITE_DEV_HOST || true,
+    port: Number(process.env.VITE_DEV_PORT) || 5173,
+    strictPort: Boolean(process.env.VITE_DEV_PORT),
+    allowedHosts: process.env.VITE_ALLOWED_HOSTS
+      ? process.env.VITE_ALLOWED_HOSTS.split(",")
+      : undefined,
+    hmr: process.env.VITE_HMR_CLIENT_PORT
+      ? { clientPort: Number(process.env.VITE_HMR_CLIENT_PORT), protocol: "wss" }
+      : true,
   },
   optimizeDeps: {
     exclude: ["better-auth"],
