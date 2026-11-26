@@ -6,7 +6,7 @@ import MobileProjectNav from "@/components/common/header/mobile-project-nav";
 import ProjectCrumbSelect from "@/components/common/header/project-crumb-select";
 import WorkspaceCrumbSelect from "@/components/common/header/workspace-crumb-select";
 import Layout from "@/components/common/layout";
-import { ProjectScopeToggle } from "@/components/project/views/project-scope-toggle";
+import { ProjectViewTabs } from "@/components/project/views/project-view-tabs";
 import {
   PROJECT_ROUTE_PATHS,
   type ProjectRoute,
@@ -41,6 +41,16 @@ type ProjectLayoutProps = {
   activeView?: ProjectRoute;
 };
 
+function resolveRouteFromPathname(pathname: string): ProjectRoute {
+  if (/\/backlog\/?$/.test(pathname)) return "backlog";
+  if (/\/calendar\/?$/.test(pathname)) return "calendar";
+  if (/\/gantt\/?$/.test(pathname)) return "gantt";
+  if (/\/workload\/?$/.test(pathname)) return "workload";
+  if (/\/people\/?$/.test(pathname)) return "people";
+  if (/\/dashboard\/?$/.test(pathname)) return "dashboard";
+  return "board";
+}
+
 export default function ProjectLayout({
   projectId,
   workspaceId,
@@ -67,14 +77,7 @@ export default function ProjectLayout({
   useProjectWebSocket(unavailableReason ? "" : projectId);
 
   const resolvedRoute: ProjectRoute =
-    activeView ??
-    (location.pathname.includes("/backlog")
-      ? "backlog"
-      : location.pathname.includes("/calendar")
-        ? "calendar"
-        : location.pathname.includes("/gantt")
-          ? "gantt"
-          : "board");
+    activeView ?? resolveRouteFromPathname(location.pathname);
   const currentView = resolveProjectView(resolvedRoute, viewMode);
   const showViews = showViewSwitcher && !unavailableReason;
 
@@ -145,25 +148,28 @@ export default function ProjectLayout({
 
       {unavailableReason ? null : (
         <TooltipProvider>
-          <div
-            className={cn(
-              "flex h-11 shrink-0 items-center gap-2.5 border-border/80 border-b px-2 sm:px-3",
-              { "bg-card/80 backdrop-blur": !!background },
-            )}
-          >
-            {showViewSwitcher && (
-              <ProjectScopeToggle
-                workspaceId={workspaceId}
-                projectId={projectId}
-                currentView={currentView}
-                onSelect={goToView}
-              />
-            )}
-            {summary}
-            <div className="ml-auto flex shrink-0 items-center gap-1">
-              {toolbar}
+          {showViews && (
+            <ProjectViewTabs
+              workspaceId={workspaceId}
+              projectId={projectId}
+              currentView={currentView}
+              onSelect={goToView}
+              className={cn({ "bg-card/85 backdrop-blur": !!background })}
+            />
+          )}
+          {(summary || toolbar) && (
+            <div
+              className={cn(
+                "flex h-11 shrink-0 items-center gap-2.5 border-border/80 border-b px-2 sm:px-3",
+                { "bg-card/80 backdrop-blur": !!background },
+              )}
+            >
+              {summary}
+              <div className="ml-auto flex shrink-0 items-center gap-1">
+                {toolbar}
+              </div>
             </div>
-          </div>
+          )}
           <div className={cn({ "bg-card/80 backdrop-blur": !!background })}>
             {filterBar}
           </div>

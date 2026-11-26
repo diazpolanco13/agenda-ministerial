@@ -27,11 +27,6 @@ Element.prototype.scrollIntoView = scrollIntoView;
 
 const navigate = vi.fn();
 
-// A plain mutable object rather than a per-test vi.fn() mock: the Gantt
-// project selector swaps `projectId` on the same route (no remount), so
-// tests that exercise that need to change what `useParams` returns between
-// renders of the *same* render() call, which a fresh mockReturnValue can't
-// do retroactively.
 const routeParams = { workspaceId: "workspace-1", projectId: "project-1" };
 
 vi.mock("@tanstack/react-router", () => ({
@@ -47,6 +42,20 @@ const useGetTasks = vi.fn();
 vi.mock("@/hooks/queries/task/use-get-tasks", () => ({
   useGetTasks: (projectId: string) => useGetTasks(projectId),
 }));
+
+const getProjectTaskRelationsMock = vi.fn((_projectId: string) => ({
+  data: [] as unknown[],
+}));
+vi.mock("@/hooks/queries/task-relation/use-get-project-task-relations", () => ({
+  default: (projectId: string) => getProjectTaskRelationsMock(projectId),
+}));
+
+vi.mock(
+  "@/hooks/queries/workspace-users/use-get-active-workspace-users",
+  () => ({
+    useGetActiveWorkspaceUsers: () => ({ data: { members: [] } }),
+  }),
+);
 
 vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: () => false,
@@ -110,14 +119,28 @@ vi.mock("@/components/page-title", () => ({
 }));
 
 vi.mock("@/components/gantt/gantt-task-bar", () => ({
-  GanttTaskBar: ({ task }: { task: { title: string } }) => (
-    <div>{task.title}</div>
+  GanttTaskBar: ({
+    task,
+    isSummary,
+    isMilestone,
+    swatch,
+  }: {
+    task: { title: string };
+    isSummary?: boolean;
+    isMilestone?: boolean;
+    swatch?: { fill: string };
+  }) => (
+    <div
+      data-testid="gantt-bar-mock"
+      data-summary={isSummary ? "true" : "false"}
+      data-milestone={isMilestone ? "true" : "false"}
+      data-fill={swatch?.fill ?? ""}
+    >
+      {task.title}
+    </div>
   ),
 }));
 
-// Resolves against the real en-US bundle, so the assertions fail if the
-// jumpToToday key (or its interpolated siblings) stops matching what the
-// component actually requests.
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) => {
@@ -172,8 +195,8 @@ function makeTask(overrides: Partial<Task>): Task {
   };
 }
 
-function mockProjectWithTask(
-  task: Task,
+function mockProjectWithTasks(
+  tasks: Task[],
   overrides: { id?: string; name?: string } = {},
 ) {
   useGetTasks.mockReturnValue({
@@ -181,18 +204,24 @@ function mockProjectWithTask(
       id: overrides.id ?? "project-1",
       name: overrides.name ?? "Roadmap",
       slug: "RM",
-      columns: [{ id: "col-1", name: "In Progress", tasks: [task] }],
+      columns: [{ id: "col-1", name: "In Progress", tasks }],
       plannedTasks: [],
       archivedTasks: [],
     },
   });
 }
 
+function mockProjectWithTask(
+  task: Task,
+  overrides: { id?: string; name?: string } = {},
+) {
+  mockProjectWithTasks([task], overrides);
+}
+
 beforeEach(() => {
-  // Fixed "today" so the timeline range and isToday() checks are
-  // deterministic regardless of when the suite runs.
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 7, 31));
+  getProjectTaskRelationsMock.mockReturnValue({ data: [] });
 });
 
 afterEach(() => {
@@ -232,6 +261,7 @@ describe("Gantt jump-to-today", () => {
       expect.objectContaining({ behavior: "auto", inline: "center" }),
     );
   });
+
   it("disables the button and never auto-scrolls when no task falls near today", () => {
     mockProjectWithTask(
       makeTask({
@@ -264,8 +294,6 @@ describe("Gantt jump-to-today", () => {
 
     render(<GanttRoute />);
 
-    // The mount-time effect scrolls today's column into view without
-    // animating, so it doesn't fight the user for scroll position on load.
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView).toHaveBeenLastCalledWith(
       expect.objectContaining({ behavior: "auto", inline: "center" }),
@@ -276,8 +304,6 @@ describe("Gantt jump-to-today", () => {
 
     fireEvent.click(button);
 
-    // A manual click animates instead, so its intent reads as a deliberate
-    // jump rather than the page settling into place.
     expect(scrollIntoView).toHaveBeenCalledTimes(2);
     expect(scrollIntoView).toHaveBeenLastCalledWith(
       expect.objectContaining({ behavior: "smooth", inline: "center" }),
@@ -298,10 +324,6 @@ describe("Gantt jump-to-today", () => {
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
 
-    // The in-page Gantt project selector changes `projectId` without
-    // unmounting this route component, so a fresh task near today on the
-    // newly selected project must still trigger the mount-time auto-center —
-    // the one-time guard from the previous project shouldn't carry over.
     routeParams.projectId = "project-2";
     mockProjectWithTask(
       makeTask({
@@ -336,9 +358,6 @@ describe("Gantt jump-to-today", () => {
     const button = screen.getByRole("button", { name: "Jump to today" });
     expect(button).not.toBeDisabled();
 
-    // The search narrows the *visible* timeline down to nothing, even though
-    // today is still within the unfiltered project's date range — the button
-    // has nothing left to scroll to and must reflect that.
     searchFor("no such task");
 
     expect(
@@ -359,17 +378,96 @@ describe("Gantt jump-to-today", () => {
 
     render(<GanttRoute />);
 
-    // The task rail renders at a fixed 20rem on desktop (see the `left`
-    // offset used by the timeline track below it); scroll-padding has to
-    // match that exactly, or "centering" on today still lands it partway
-    // under the rail.
-    //
-    // Asserted against the raw inline style rather than via `toHaveStyle`:
-    // jsdom resolves `getComputedStyle()` rem units to pixels (assuming the
-    // default 16px root), which would make a "20rem" expectation compare
-    // against a computed "320px" and fail regardless of whether the
-    // component is correct.
     const container = screen.getByTestId("gantt-scroll-container");
-    expect(container.style.scrollPaddingLeft).toBe("20rem");
+    expect(container.style.scrollPaddingLeft).toBe("34rem");
+  });
+});
+
+describe("Gantt hierarchy, zoom and coloring", () => {
+  it("renders WBS hierarchy, supports collapse/expand all, and uses smart months zoom for multi-month spans", () => {
+    mockProjectWithTasks([
+      makeTask({
+        id: "phase-1",
+        title: "Fase 1",
+        position: 1,
+        startDate: "2026-12-01",
+        dueDate: "2026-12-15",
+      }),
+      makeTask({
+        id: "sub-1",
+        title: "Subtarea 1",
+        position: 1,
+        startDate: "2026-12-01",
+        dueDate: "2026-12-10",
+      }),
+      makeTask({
+        id: "milestone-1",
+        title: "Hito final",
+        position: 2,
+        startDate: "2027-03-10",
+        dueDate: "2027-03-10",
+      }),
+    ]);
+    getProjectTaskRelationsMock.mockReturnValue({
+      data: [
+        {
+          id: "rel-1",
+          sourceTaskId: "phase-1",
+          targetTaskId: "sub-1",
+          relationType: "subtask",
+        },
+      ],
+    });
+
+    render(<GanttRoute />);
+
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("1.1")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("Milestone")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Months" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    const bars = screen.getAllByTestId("gantt-bar-mock");
+    expect(bars[0]).toHaveAttribute("data-summary", "true");
+    expect(bars[2]).toHaveAttribute("data-milestone", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+    expect(screen.queryByText("1.1")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
+    expect(screen.getByText("1.1")).toBeInTheDocument();
+  });
+
+  it("switches zoom levels manually when user clicks Weeks or Days", () => {
+    mockProjectWithTask(
+      makeTask({
+        id: "t-1",
+        title: "Multi-month task",
+        startDate: "2026-12-01",
+        dueDate: "2027-03-15",
+      }),
+    );
+
+    render(<GanttRoute />);
+
+    expect(screen.getByRole("button", { name: "Months" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Weeks" }));
+    expect(screen.getByRole("button", { name: "Weeks" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Days" }));
+    expect(screen.getByRole("button", { name: "Days" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 });

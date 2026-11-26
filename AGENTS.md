@@ -17,15 +17,39 @@ Se construye sobre Kaneo (MIT) y debe sentirse como SIGEFANB: español, sobrio, 
 - Permisos siempre en la API (no basta con ocultar en la UI). Esto es información sensible de un despacho ministerial.
 - Mantener el fork fácil de actualizar desde upstream (`git fetch upstream`): preferir módulos nuevos a reescribir los de Kaneo.
 
-## Entorno en la Spark (desarrollo)
+## Entorno en la Spark
 - Código: `~/proyectos/agenda/aplicacion` (origin: github.com/diazpolanco13/agenda-ministerial, upstream: usekaneo/kaneo).
 - Node 24 propio en `~/.local/node24/bin` (no usar el Node 22 de SIGEFANB) y pnpm 12.18: `export PATH=$HOME/.local/node24/bin:$PATH`.
-- Servicio: `systemctl --user {status,restart} agenda-dev` (script `~/.local/libexec/agenda-dev.sh`: API `tsx watch` + web Vite con HMR).
-- Web Vite: 127.0.0.1:4185 · API Hono: 127.0.0.1:4186 · PostgreSQL 16: 127.0.0.1:5450 (`~/proyectos/agenda/dev-db`, `docker compose`).
-- Público: https://agenda.mppd.dev vía Cloudflare Tunnel `sigefanb-spark` (`/api*` → 4186, resto → 4185). Registro libre deshabilitado.
-- Variables en `.env` (raíz, 600). Ajustes locales al fork: `apps/web/vite.config.ts` (VITE_DEV_HOST/PORT, allowedHosts, HMR 443)
-  y `apps/api/src/index.ts` (KANEO_API_HOST/PORT).
+- PostgreSQL 16: 127.0.0.1:5450 (`~/proyectos/agenda/dev-db`, `docker compose`). Una sola BD, compartida por producción y desarrollo.
+- Variables en `.env` (raíz, 600). Nunca imprimirlas.
+
+### Producción pública — https://agenda.mppd.dev (BUILD, rápido)
+- Lo público NO es el dev server: es un build de producción. **Tras cambiar código, publícalo con:**
+  ```bash
+  ~/.local/bin/agenda-deploy          # web + API (~20-30 s)
+  ~/.local/bin/agenda-deploy web      # solo frontend: cambio atómico, sin reiniciar nada
+  ~/.local/bin/agenda-deploy api      # solo API: reinicia agenda-prod-api; si no responde, rollback automático
+  ~/.local/bin/agenda-deploy status   # releases activos y salud
+  ~/.local/bin/agenda-deploy rollback web|api
+  ```
+  Construye el árbol de trabajo actual (rama activa, con cambios sin commit). Si el build falla, lo público no cambia.
+  Logs de cada build: `~/proyectos/agenda/despliegue/logs/`.
+- Web: contenedor docker `agenda-web` (nginx:1.29-alpine, `--network host`, restart unless-stopped) en 127.0.0.1:4185,
+  sirve `~/proyectos/agenda/despliegue/web/current` → `releases/<fecha>`. Config: `~/proyectos/agenda/despliegue/nginx-agenda.conf`.
+  `/assets/*` (con hash) = `Cache-Control: immutable, 1 año` (Cloudflare los cachea en el borde); `index.html` = `no-cache`.
+- API: `systemctl --user {status,restart} agenda-prod-api` → `node apps/api/.releases/current/dist/index.js` en 127.0.0.1:4186,
+  `NODE_ENV=production`. Logs: `journalctl --user -u agenda-prod-api -f`. Los crons y el worker de webhooks corren SOLO aquí.
+- VITE_* del build: `apps/web/.env.production.local` (pisa los placeholders `KANEO_*` de `.env.production`).
+- Túnel Cloudflare `sigefanb-spark` (sin cambios): `agenda.mppd.dev/api*` → 4186, resto → 4185.
+
+### Desarrollo (HMR) — solo por Tailscale: http://100.93.106.34:4195
+- `systemctl --user {status,restart} agenda-dev` (script `~/.local/libexec/agenda-dev.sh`): Vite con HMR en 100.93.106.34:4195
+  (proxy `/api` + websockets → API dev `tsx watch` en 127.0.0.1:4196). Misma BD que producción; `AGENDA_DISABLE_SCHEDULER=true`.
+- En dev, las VITE_* las exporta `agenda-dev.sh` (tienen prioridad sobre `apps/web/.env.development*`).
+- Las subidas a S3 desde el dev de Tailscale pueden fallar por CORS del bucket (permitido para agenda.mppd.dev).
 - Logs: `journalctl --user -u agenda-dev -f`.
+- Ajustes locales al fork: `apps/web/vite.config.ts` (VITE_DEV_HOST/PORT, allowedHosts, HMR, proxy `VITE_API_PROXY_TARGET`)
+  y `apps/api/src/index.ts` (KANEO_API_HOST/PORT, `AGENDA_DISABLE_SCHEDULER`).
 
 ## Hoja de ruta
 1. Español y marca AGENDA (estilo SIGEFANB: shadcn/ui + Tailwind 4, que Kaneo ya usa).

@@ -42,6 +42,15 @@ vi.mock("@/hooks/queries/task/use-get-tasks", () => ({
     },
   }),
 }));
+vi.mock("@/hooks/queries/task-relation/use-get-project-task-relations", () => ({
+  default: () => ({ data: [] }),
+}));
+vi.mock(
+  "@/hooks/queries/workspace-users/use-get-active-workspace-users",
+  () => ({
+    useGetActiveWorkspaceUsers: () => ({ data: { members: [] } }),
+  }),
+);
 vi.mock("@/hooks/mutations/task/use-update-task", () => ({
   useUpdateTask: () => ({ mutateAsync: m.update }),
 }));

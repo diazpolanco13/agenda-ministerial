@@ -3,7 +3,9 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildGanttTimeline,
   GANTT_WINDOW_DAYS,
+  GANTT_ZOOM_CONFIG,
   parseTaskDate,
+  resolveSmartGanttZoom,
 } from "./timeline";
 
 const span = (start: string, end = start) => ({
@@ -79,4 +81,26 @@ describe("bounded Gantt timeline", () => {
       expect(parseTaskDate(value)).toBeNull();
     },
   );
+  it("supports weeks and months zoom windows and smart zoom selection", () => {
+    const multiMonth = [span("2026-12-01", "2027-03-15")];
+    expect(resolveSmartGanttZoom(multiMonth)).toBe("months");
+    expect(resolveSmartGanttZoom([span("2026-12-01", "2026-12-28")])).toBe(
+      "weeks",
+    );
+    expect(resolveSmartGanttZoom([span("2026-12-01", "2026-12-10")])).toBe(
+      "days",
+    );
+
+    const timeline = buildGanttTimeline(
+      multiMonth,
+      1,
+      GANTT_ZOOM_CONFIG.months.dayColumnWidthRem,
+      null,
+      parseISO("2026-12-10"),
+      "months",
+    );
+    expect(timeline?.windowDays).toBe(366);
+    expect(timeline?.hasPrevious).toBe(false);
+    expect(timeline?.hasNext).toBe(false);
+  });
 });

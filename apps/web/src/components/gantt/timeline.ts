@@ -10,6 +10,34 @@ import {
 } from "date-fns";
 
 export const GANTT_WINDOW_DAYS = 91;
+
+export type GanttZoom = "days" | "weeks" | "months";
+
+export const GANTT_ZOOM_CONFIG: Record<
+  GanttZoom,
+  {
+    dayColumnWidthRem: number;
+    mobileDayColumnWidthRem: number;
+    maxWindowDays: number;
+  }
+> = {
+  days: {
+    dayColumnWidthRem: 2.75,
+    mobileDayColumnWidthRem: 3.125,
+    maxWindowDays: GANTT_WINDOW_DAYS,
+  },
+  weeks: {
+    dayColumnWidthRem: 1.25,
+    mobileDayColumnWidthRem: 1.5,
+    maxWindowDays: 182,
+  },
+  months: {
+    dayColumnWidthRem: 0.55,
+    mobileDayColumnWidthRem: 0.68,
+    maxWindowDays: 366,
+  },
+};
+
 const minimumDate = parseISO("0001-01-01");
 const maximumDate = parseISO("9999-12-31");
 
@@ -29,14 +57,38 @@ function clampDate(date: Date, minimum: Date, maximum: Date) {
   );
 }
 
+export function resolveSmartGanttZoom(
+  tasks: { scheduleStart: Date; scheduleEnd: Date }[],
+): GanttZoom {
+  if (tasks.length === 0) return "days";
+  let earliest = tasks[0].scheduleStart;
+  let latest = tasks[0].scheduleEnd;
+  for (const task of tasks) {
+    if (task.scheduleStart < earliest) earliest = task.scheduleStart;
+    if (task.scheduleEnd > latest) latest = task.scheduleEnd;
+  }
+  const spanDays = differenceInCalendarDays(latest, earliest);
+  // Legacy unvalidated multi-century spans keep the 91-day window behavior.
+  if (spanDays > 3650) return "days";
+  if (spanDays > 45) return "months";
+  if (spanDays > 21) return "weeks";
+  return "days";
+}
+
 export function buildGanttTimeline(
   tasks: { scheduleStart: Date; scheduleEnd: Date }[],
   weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6,
   dayColumnWidthRem: number,
   requestedStart: Date | null = null,
   today: Date = new Date(),
+  zoomOrMaxWindowDays: GanttZoom | number = GANTT_WINDOW_DAYS,
 ) {
   if (tasks.length === 0) return null;
+  const windowDays =
+    typeof zoomOrMaxWindowDays === "number"
+      ? Math.max(1, zoomOrMaxWindowDays)
+      : GANTT_ZOOM_CONFIG[zoomOrMaxWindowDays].maxWindowDays;
+
   let earliest = tasks[0].scheduleStart;
   let latest = tasks[0].scheduleEnd;
   for (const task of tasks) {
@@ -56,11 +108,10 @@ export function buildGanttTimeline(
   const maximumStart = new Date(
     Math.max(
       minimumStart.getTime(),
-      subDays(maximumEnd, GANTT_WINDOW_DAYS - 1).getTime(),
+      subDays(maximumEnd, windowDays - 1).getTime(),
     ),
   );
-  const fits =
-    differenceInCalendarDays(maximumEnd, minimumStart) < GANTT_WINDOW_DAYS;
+  const fits = differenceInCalendarDays(maximumEnd, minimumStart) < windowDays;
   const anchor = today >= earliest && today <= latest ? today : earliest;
   const defaultStart = fits
     ? minimumStart
@@ -75,7 +126,7 @@ export function buildGanttTimeline(
     ),
   );
   const rangeEnd = clampDate(
-    addDays(rangeStart, GANTT_WINDOW_DAYS - 1),
+    addDays(rangeStart, windowDays - 1),
     rangeStart,
     maximumEnd,
   );
@@ -88,6 +139,7 @@ export function buildGanttTimeline(
     rangeEnd,
     minimumStart,
     maximumStart,
+    windowDays,
     hasPrevious: rangeStart > minimumStart,
     hasNext: rangeEnd < maximumEnd,
     gridTemplateColumns: `repeat(${days.length}, minmax(${dayColumnWidthRem}rem, ${dayColumnWidthRem}rem))`,

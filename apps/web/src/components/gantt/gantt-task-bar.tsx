@@ -1,14 +1,24 @@
-import { addDays, differenceInCalendarDays, startOfDay } from "date-fns";
-import { useCallback, useEffect, useState } from "react";
+import {
+  addDays,
+  differenceInCalendarDays,
+  format,
+  startOfDay,
+} from "date-fns";
+import { type CSSProperties, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ResponsableAvatar } from "@/components/responsable-avatar";
 import { useUpdateTask } from "@/hooks/mutations/task/use-update-task";
+import {
+  AGENDA_VIVID_PALETTE,
+  type AgendaColorSwatch,
+  GANTT_SUMMARY_COLOR,
+} from "@/lib/agenda-palette";
 import { cn } from "@/lib/cn";
 import { toast } from "@/lib/toast";
 import type Task from "@/types/task";
 
 const CLICK_MOVE_THRESHOLD_PX = 4;
 const MOBILE_MOVE_THRESHOLD_PX = 14;
-const MIN_INLINE_LABEL_PX = 120;
 // Below this width a phone bar can't fit two 24px resize handles plus a
 // usable move/tap area, so it's left as one target; dates stay editable from
 // the task sheet.
@@ -28,6 +38,17 @@ type GanttTaskBarProps = {
   };
   pixelsPerDay: number;
   isMobile?: boolean;
+  isSummary?: boolean;
+  isMilestone?: boolean;
+  isCompleted?: boolean;
+  isOverdue?: boolean;
+  progressPercent?: number;
+  swatch?: AgendaColorSwatch;
+  scheduleStart?: Date;
+  scheduleEnd?: Date;
+  assigneeId?: string | null;
+  assigneeName?: string | null;
+  assigneeImage?: string | null;
   onOpenTask: () => void;
 };
 
@@ -60,6 +81,17 @@ export function GanttTaskBar({
   timeline,
   pixelsPerDay,
   isMobile = false,
+  isSummary = false,
+  isMilestone = false,
+  isCompleted = false,
+  isOverdue = false,
+  progressPercent = 0,
+  swatch = AGENDA_VIVID_PALETTE[1],
+  scheduleStart: effectiveScheduleStart,
+  scheduleEnd: effectiveScheduleEnd,
+  assigneeId,
+  assigneeName,
+  assigneeImage,
   onOpenTask,
 }: GanttTaskBarProps) {
   const { t } = useTranslation();
@@ -69,20 +101,22 @@ export function GanttTaskBar({
     end: Date;
   } | null>(null);
 
+  const baseStart = effectiveScheduleStart ?? task.scheduleStart;
+  const baseEnd = effectiveScheduleEnd ?? task.scheduleEnd;
+
   // Drop the drag overlay once server data matches
   useEffect(() => {
     if (!dragDisplay) return;
     const startMatches =
-      differenceInCalendarDays(task.scheduleStart, dragDisplay.start) === 0;
-    const endMatches =
-      differenceInCalendarDays(task.scheduleEnd, dragDisplay.end) === 0;
+      differenceInCalendarDays(baseStart, dragDisplay.start) === 0;
+    const endMatches = differenceInCalendarDays(baseEnd, dragDisplay.end) === 0;
     if (startMatches && endMatches) {
       setDragDisplay(null);
     }
-  }, [dragDisplay, task.scheduleEnd, task.scheduleStart]);
+  }, [dragDisplay, baseEnd, baseStart]);
 
-  const displayStart = dragDisplay?.start ?? task.scheduleStart;
-  const displayEnd = dragDisplay?.end ?? task.scheduleEnd;
+  const displayStart = dragDisplay?.start ?? baseStart;
+  const displayEnd = dragDisplay?.end ?? baseEnd;
 
   const trackCount = timeline.days.length;
   const { barInView, lineStart, lineEnd } = getBarGridColumns(
@@ -93,10 +127,9 @@ export function GanttTaskBar({
   );
 
   const startIsVisible =
-    differenceInCalendarDays(task.scheduleStart, timeline.rangeStart) >= 0;
+    differenceInCalendarDays(baseStart, timeline.rangeStart) >= 0;
   const endIsVisible =
-    differenceInCalendarDays(task.scheduleEnd, timeline.rangeStart) <
-    trackCount;
+    differenceInCalendarDays(baseEnd, timeline.rangeStart) < trackCount;
 
   const persistDates = useCallback(
     async (nextStart: Date, nextEnd: Date): Promise<boolean> => {
@@ -141,8 +174,7 @@ export function GanttTaskBar({
       let nextStartIdx = startIdx + deltaDays;
       nextStartIdx = Math.max(0, Math.min(nextStartIdx, endIdx));
       const nextStart = timeline.days[nextStartIdx] ?? initialStart;
-      const nextEnd = initialEnd;
-      setDragDisplay({ start: nextStart, end: nextEnd });
+      setDragDisplay({ start: nextStart, end: initialEnd });
     };
 
     const onUp = async (ev: PointerEvent) => {
@@ -191,8 +223,7 @@ export function GanttTaskBar({
       let nextEndIdx = endIdx + deltaDays;
       nextEndIdx = Math.max(startIdx, Math.min(nextEndIdx, trackCount - 1));
       const nextEnd = timeline.days[nextEndIdx] ?? initialEnd;
-      const nextStart = initialStart;
-      setDragDisplay({ start: nextStart, end: nextEnd });
+      setDragDisplay({ start: initialStart, end: nextEnd });
     };
 
     const onUp = async (ev: PointerEvent) => {
@@ -295,12 +326,144 @@ export function GanttTaskBar({
     return null;
   }
 
-  // Short bars on phones leave no room for the title inside them, so it's
-  // drawn just after the bar instead (when the timeline has room for it).
+  const resolvedAssigneeId = assigneeId ?? task.assigneeId;
+  const resolvedAssigneeName = assigneeName ?? task.assigneeName;
+  const resolvedAssigneeImage = assigneeImage ?? task.assigneeImage ?? null;
+  const hasAssignee = Boolean(resolvedAssigneeId || resolvedAssigneeName);
+
+  const colorStyle = {
+    "--gantt-bar-fill": swatch.fill,
+    "--gantt-bar-fill-dark": swatch.fillDark,
+    "--gantt-bar-border": swatch.border,
+    "--gantt-bar-on-fill": swatch.onFill,
+  } as CSSProperties;
+
+  if (isSummary) {
+    const summaryStyle = {
+      gridColumn: `${lineStart} / ${lineEnd}`,
+      "--gantt-summary-fill": GANTT_SUMMARY_COLOR.fill,
+      "--gantt-summary-fill-dark": GANTT_SUMMARY_COLOR.fillDark,
+      "--gantt-summary-track": GANTT_SUMMARY_COLOR.trackBg,
+    } as CSSProperties;
+
+    return (
+      <div
+        className="pointer-events-none absolute inset-0 z-[1] grid items-center"
+        style={{ gridTemplateColumns: timeline.gridTemplateColumns }}
+      >
+        <button
+          type="button"
+          style={summaryStyle}
+          aria-label={t("tasks:gantt.taskAriaLabel", { title: task.title })}
+          onClick={onOpenTask}
+          className={cn(
+            "group pointer-events-auto relative mx-0.5 flex h-9 min-w-0 cursor-pointer flex-col justify-end pb-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            isCompleted && "opacity-65",
+          )}
+        >
+          <span className="mb-1 block max-w-none whitespace-nowrap text-[11px] font-semibold leading-none text-[#356618] dark:text-[#a3e635]">
+            <span className={cn(isCompleted && "line-through")}>
+              {task.title}
+            </span>
+            <span className="ml-1.5 font-normal opacity-80">
+              | {format(displayStart, "yyyy/MM/dd")} -{" "}
+              {format(displayEnd, "yyyy/MM/dd")}
+            </span>
+          </span>
+          <div className="relative h-[7px] w-full rounded-[2px] bg-[var(--gantt-summary-track)]">
+            <div
+              className="h-full rounded-[2px] bg-[var(--gantt-summary-fill)] transition-[width] dark:bg-[var(--gantt-summary-fill-dark)]"
+              style={{
+                width: `${Math.max(0, Math.min(100, progressPercent))}%`,
+              }}
+            />
+            {startIsVisible && (
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-[3px] left-0 h-[4px] w-[3px] rounded-b-[1px] bg-[var(--gantt-summary-fill)] dark:bg-[var(--gantt-summary-fill-dark)]"
+              />
+            )}
+            {endIsVisible && (
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-[3px] right-0 h-[4px] w-[3px] rounded-b-[1px] bg-[var(--gantt-summary-fill)] dark:bg-[var(--gantt-summary-fill-dark)]"
+              />
+            )}
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  if (isMilestone) {
+    return (
+      <div
+        className="pointer-events-none absolute inset-0 z-[1] grid items-center"
+        style={{ gridTemplateColumns: timeline.gridTemplateColumns }}
+      >
+        <div
+          style={{ gridColumn: `${lineStart} / ${lineEnd}`, ...colorStyle }}
+          className="pointer-events-auto relative flex items-center justify-center"
+        >
+          <button
+            type="button"
+            aria-label={t("tasks:gantt.taskAriaLabel", { title: task.title })}
+            onPointerDown={handleMovePointerDown}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpenTask();
+              }
+            }}
+            className="group relative flex size-7 cursor-grab items-center justify-center touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+          >
+            <span
+              className={cn(
+                "block size-3.5 rotate-45 rounded-[2px] bg-[var(--gantt-bar-fill)] shadow-sm transition-transform group-hover:scale-110 dark:bg-[var(--gantt-bar-fill-dark)]",
+                isOverdue && "ring-2 ring-destructive ring-offset-1",
+                isCompleted && "opacity-60",
+              )}
+            />
+            {isOverdue && (
+              <span
+                title={t("tasks:gantt.overdue")}
+                className="absolute right-0.5 top-0.5 size-2 rounded-full bg-destructive ring-1 ring-background"
+              />
+            )}
+          </button>
+        </div>
+
+        {lineEnd <= trackCount && (
+          <div
+            aria-hidden="true"
+            style={{ gridColumn: `${lineEnd} / ${trackCount + 1}` }}
+            className="pointer-events-none flex min-w-0 items-center gap-1.5 overflow-visible whitespace-nowrap pl-2"
+          >
+            <ResponsableAvatar
+              size="xs"
+              userId={resolvedAssigneeId}
+              name={resolvedAssigneeName}
+              image={resolvedAssigneeImage}
+              assigned={hasAssignee}
+            />
+            <span className="text-[11px] text-muted-foreground/50">|</span>
+            <span
+              className={cn(
+                "text-xs font-medium text-foreground/85",
+                isCompleted && "line-through text-muted-foreground opacity-70",
+              )}
+            >
+              {task.title}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const barWidthPx = (lineEnd - lineStart) * pxPerDay;
-  const labelOutside =
-    isMobile && barWidthPx < MIN_INLINE_LABEL_PX && lineEnd <= trackCount;
   const showResizeHandles = !isMobile || barWidthPx >= MIN_TOUCH_RESIZABLE_PX;
+  const showRightAnnotation = lineEnd <= trackCount;
 
   return (
     <div
@@ -310,8 +473,13 @@ export function GanttTaskBar({
       }}
     >
       <div
-        style={{ gridColumn: `${lineStart} / ${lineEnd}` }}
-        className="group pointer-events-auto relative mx-1 flex min-h-[44px] min-w-0 items-stretch overflow-hidden rounded-md border border-primary/25 bg-background text-left text-sm font-medium leading-none text-foreground shadow-sm transition-colors hover:border-primary/40 sm:h-11 sm:min-h-0"
+        style={{ gridColumn: `${lineStart} / ${lineEnd}`, ...colorStyle }}
+        className={cn(
+          "group pointer-events-auto relative mx-0.5 flex h-7 min-w-0 items-stretch rounded-[4px] bg-[var(--gantt-bar-fill)] text-left text-xs font-medium leading-none shadow-xs transition-opacity dark:bg-[var(--gantt-bar-fill-dark)] sm:h-6",
+          isCompleted && "opacity-60",
+          isOverdue &&
+            "ring-2 ring-destructive ring-offset-1 ring-offset-background",
+        )}
       >
         {showResizeHandles && (
           <button
@@ -320,8 +488,8 @@ export function GanttTaskBar({
             disabled={!startIsVisible}
             onPointerDown={handleResizeLeftPointerDown}
             className={cn(
-              "relative z-20 shrink-0 cursor-ew-resize touch-none border-r border-primary/15 bg-primary/8 hover:bg-primary/18",
-              "min-h-[44px] w-6 sm:min-h-0 sm:w-2",
+              "relative z-20 shrink-0 cursor-ew-resize touch-none rounded-l-[4px] bg-black/15 transition-opacity hover:bg-black/25",
+              "w-5 sm:w-2 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
             )}
           />
@@ -329,7 +497,7 @@ export function GanttTaskBar({
         <button
           type="button"
           aria-label={t("tasks:gantt.taskAriaLabel", { title: task.title })}
-          className="relative z-10 min-h-[44px] min-w-0 flex-1 cursor-grab touch-manipulation overflow-hidden px-2 text-left active:cursor-grabbing sm:min-h-0 sm:px-2.5"
+          className="relative z-10 flex min-w-0 flex-1 cursor-grab touch-manipulation items-center overflow-hidden px-1.5 text-left active:cursor-grabbing"
           onPointerDown={handleMovePointerDown}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
@@ -338,12 +506,13 @@ export function GanttTaskBar({
             }
           }}
         >
-          <div className="absolute inset-0 z-0 bg-primary/12 transition-colors group-hover:bg-primary/18" />
           <span
             className={cn(
-              "relative z-10 block truncate",
-              labelOutside && "sr-only",
+              "relative z-10 block truncate text-[11px] font-medium",
+              showRightAnnotation && "sr-only",
+              isCompleted && "line-through",
             )}
+            style={showRightAnnotation ? undefined : { color: swatch.onFill }}
           >
             {task.title}
           </span>
@@ -355,21 +524,43 @@ export function GanttTaskBar({
             disabled={!endIsVisible}
             onPointerDown={handleResizeRightPointerDown}
             className={cn(
-              "relative z-20 shrink-0 cursor-ew-resize touch-none border-l border-primary/15 bg-primary/8 hover:bg-primary/18",
-              "min-h-[44px] w-6 sm:min-h-0 sm:w-2",
+              "relative z-20 shrink-0 cursor-ew-resize touch-none rounded-r-[4px] bg-black/15 transition-opacity hover:bg-black/25",
+              "w-5 sm:w-2 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
             )}
           />
         )}
+        {isOverdue && (
+          <span
+            title={t("tasks:gantt.overdue")}
+            className="pointer-events-none absolute -right-1 -top-1 z-30 size-2.5 rounded-full bg-destructive ring-2 ring-background"
+          />
+        )}
       </div>
-      {labelOutside && (
-        <span
+
+      {showRightAnnotation && (
+        <div
           aria-hidden="true"
           style={{ gridColumn: `${lineEnd} / ${trackCount + 1}` }}
-          className="min-w-0 truncate pl-1 text-xs font-medium text-foreground/80"
+          className="pointer-events-none flex min-w-0 items-center gap-1.5 overflow-visible whitespace-nowrap pl-2"
         >
-          {task.title}
-        </span>
+          <ResponsableAvatar
+            size="xs"
+            userId={resolvedAssigneeId}
+            name={resolvedAssigneeName}
+            image={resolvedAssigneeImage}
+            assigned={hasAssignee}
+          />
+          <span className="text-[11px] text-muted-foreground/50">|</span>
+          <span
+            className={cn(
+              "text-xs font-medium text-foreground/85",
+              isCompleted && "line-through text-muted-foreground opacity-70",
+            )}
+          >
+            {task.title}
+          </span>
+        </div>
       )}
     </div>
   );

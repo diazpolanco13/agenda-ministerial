@@ -6,6 +6,7 @@ import {
   type ProjectRoute,
   type ProjectView,
   routeForView,
+  setLastProjectView,
 } from "./project-views";
 
 export function useGoToProjectView({
@@ -23,6 +24,7 @@ export function useGoToProjectView({
 
   return useCallback(
     (view: ProjectView) => {
+      setLastProjectView(projectId, view);
       if (view === "board" || view === "list") setViewMode(view);
       if (view !== "backlog") setTaskLayout(view);
       const route = routeForView(view);

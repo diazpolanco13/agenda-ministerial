@@ -8,7 +8,14 @@ export function isWeekStartDay(value: number): value is WeekStartDay {
   return WEEK_START_DAYS.some((day) => day === value);
 }
 
-export type TaskLayout = "board" | "list" | "calendar" | "gantt";
+export type TaskLayout =
+  | "gantt"
+  | "board"
+  | "list"
+  | "calendar"
+  | "workload"
+  | "people"
+  | "dashboard";
 
 export type PriorityIconStyle = "marks" | "classic";
 

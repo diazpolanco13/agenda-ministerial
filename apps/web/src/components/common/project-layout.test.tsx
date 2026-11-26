@@ -1,4 +1,5 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { HttpError } from "@/lib/http-error";
@@ -16,6 +17,7 @@ vi.mock("@tanstack/react-router", () => ({
   useLocation: () => ({ pathname: "/board" }),
   useRouter: () => ({
     buildLocation: ({ to }: { to: string }) => ({ href: to }),
+    preloadRoute: vi.fn().mockResolvedValue(undefined),
   }),
   Link: ({ children, to }: { children: ReactNode; to: string }) => (
     <a href={to}>{children}</a>
@@ -59,17 +61,23 @@ vi.mock("@/components/page-title", () => ({ default: () => null }));
 afterEach(cleanup);
 
 function renderLayout() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   render(
-    <ProjectLayout
-      projectId="project-1"
-      workspaceId="workspace-1"
-      activeView="board"
-      toolbar={<button type="button">Toolbar action</button>}
-      summary={<span>5 tasks</span>}
-    >
-      <p>Board content</p>
-    </ProjectLayout>,
+    <QueryClientProvider client={queryClient}>
+      <ProjectLayout
+        projectId="project-1"
+        workspaceId="workspace-1"
+        activeView="board"
+        toolbar={<button type="button">Toolbar action</button>}
+        summary={<span>5 tasks</span>}
+      >
+        <p>Board content</p>
+      </ProjectLayout>
+    </QueryClientProvider>,
   );
+  return { queryClient };
 }
 
 describe("ProjectLayout access states", () => {
@@ -111,13 +119,13 @@ describe("ProjectLayout access states", () => {
     expect(screen.getByText("5 tasks")).toBeVisible();
   });
 
-  it("marks tasks as current and links the backlog", () => {
+  it("marks active view as current and links the backlog", () => {
     project.current = { data: { name: "Alpha" }, error: null };
     renderLayout();
 
     expect(
       screen
-        .getByRole("link", { name: "tasks:title" })
+        .getByRole("link", { name: "tasks:view.board" })
         .getAttribute("aria-current"),
     ).toBe("page");
     const backlog = screen.getByRole("link", { name: "tasks:view.backlog" });
@@ -125,5 +133,11 @@ describe("ProjectLayout access states", () => {
     expect(backlog.getAttribute("href")).toBe(
       "/dashboard/workspace/$workspaceId/project/$projectId/backlog",
     );
+
+    const gantt = screen.getByRole("link", { name: "tasks:view.gantt" });
+    expect(gantt.getAttribute("href")).toBe(
+      "/dashboard/workspace/$workspaceId/project/$projectId/gantt",
+    );
+    fireEvent.mouseEnter(gantt);
   });
 });

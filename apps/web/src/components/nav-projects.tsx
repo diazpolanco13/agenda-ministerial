@@ -66,6 +66,12 @@ import useGetProjects from "@/hooks/queries/project/use-get-projects";
 import useActiveWorkspace from "@/hooks/queries/workspace/use-active-workspace";
 import { useBoardHoverPrefetch } from "@/hooks/use-board-hover-prefetch";
 import { useWorkspacePermission } from "@/hooks/use-workspace-permission";
+import {
+  getLastProjectView,
+  PROJECT_ROUTE_PATHS,
+  routeForView,
+} from "@/components/project/views/project-views";
+import { useUserPreferencesStore } from "@/store/user-preferences";
 import { EASE_OUT_CSS } from "@/lib/motion";
 import { toast } from "@/lib/toast";
 import type { ProjectWithTasks } from "@/types/project";
@@ -169,9 +175,16 @@ export function NavProjects() {
     );
   };
 
+  const setViewMode = useUserPreferencesStore((state) => state.setViewMode);
+
   const handleProjectClick = (project: ProjectWithTasks) => {
+    const lastView = getLastProjectView(project.id);
+    if (lastView === "board" || lastView === "list") {
+      setViewMode(lastView);
+    }
+    const route = routeForView(lastView);
     navigate({
-      to: "/dashboard/workspace/$workspaceId/project/$projectId/board",
+      to: PROJECT_ROUTE_PATHS[route],
       params: {
         workspaceId: workspace?.id || "",
         projectId: project.id,

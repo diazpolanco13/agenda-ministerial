@@ -1,9 +1,8 @@
-import { UnassignedAvatar } from "@/components/common/unassigned-avatar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ResponsableAvatar } from "@/components/responsable-avatar";
 import { cn } from "@/lib/cn";
-import { getInitials } from "@/lib/get-initials";
 
 type AssigneeAvatarProps = {
+  userId?: string | null;
   name: string | null | undefined;
   image: string | null | undefined;
   assigned: boolean;
@@ -12,27 +11,22 @@ type AssigneeAvatarProps = {
 };
 
 export function AssigneeAvatar({
+  userId,
   name,
   image,
   assigned,
   className,
   fallbackClassName,
 }: AssigneeAvatarProps) {
-  if (!assigned) {
-    return <UnassignedAvatar className={cn("size-4.5", className)} />;
-  }
-
   return (
-    <Avatar className={cn("size-4.5 shrink-0", className)}>
-      <AvatarImage src={image ?? ""} alt="" />
-      <AvatarFallback
-        className={cn(
-          "border border-avatar-border bg-avatar font-semibold text-[8px] text-avatar-foreground",
-          fallbackClassName,
-        )}
-      >
-        {getInitials(name)}
-      </AvatarFallback>
-    </Avatar>
+    <ResponsableAvatar
+      userId={userId}
+      name={name}
+      image={image}
+      assigned={assigned}
+      size="xs"
+      className={cn("size-4.5", className)}
+      fallbackClassName={fallbackClassName}
+    />
   );
 }

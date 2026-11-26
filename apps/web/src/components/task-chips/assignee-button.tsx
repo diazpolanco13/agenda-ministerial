@@ -36,6 +36,7 @@ export function AssigneeButton({
         {...stopCardEvents}
       >
         <AssigneeAvatar
+          userId={task.userId}
           name={name}
           image={image}
           assigned={Boolean(task.userId)}
