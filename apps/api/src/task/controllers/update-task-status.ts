@@ -27,6 +27,18 @@ async function updateTaskStatus({
         ),
       });
 
+      const isDestinationFinal = Boolean(column?.isFinal || status === "done");
+      if (
+        existingTask.isOrder &&
+        isDestinationFinal &&
+        existingTask.orderClosureStatus !== "aprobada"
+      ) {
+        throw new HTTPException(409, {
+          message:
+            "Esta orden requiere adjuntar evidencia y recibir visto bueno para cerrarse.",
+        });
+      }
+
       const [updatedTask] = await tx
         .update(taskTable)
         .set({ status, columnId: column?.id ?? null })

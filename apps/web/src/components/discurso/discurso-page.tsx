@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { saveAs } from "file-saver";
 import { CheckCircle2, ExternalLink, FileAudio2 } from "lucide-react";
 import { useState } from "react";
 import { DraftsList } from "@/components/discurso/drafts-list";
@@ -10,6 +11,7 @@ import {
   type AprobarBorradorResponse,
   actualizarBorradorDiscurso,
   aprobarBorradorDiscurso,
+  descargarActaPdf,
   type DiscursoBorrador,
   type DiscursoOrdenBorrador,
   eliminarBorradorDiscurso,
@@ -24,11 +26,30 @@ type DiscursoPageProps = {
   workspaceId: string;
 };
 
+function parseAsistentes(raw: string): string[] {
+  return raw
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildActaFilename(titulo: string): string {
+  const base = titulo
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return `${base || "acta-acuerdos"}.pdf`;
+}
+
 export function DiscursoPage({ workspaceId }: DiscursoPageProps) {
   const queryClient = useQueryClient();
 
   const [activeDraft, setActiveDraft] = useState<DiscursoBorrador | null>(null);
   const [ordenes, setOrdenes] = useState<DiscursoOrdenBorrador[]>([]);
+  const [asistentesText, setAsistentesText] = useState("");
   const [motorUsado, setMotorUsado] = useState<string>("reglas");
   const [fallbackMotivo, setFallbackMotivo] = useState<string | undefined>(
     undefined,
@@ -54,6 +75,7 @@ export function DiscursoPage({ workspaceId }: DiscursoPageProps) {
     onSuccess: (res) => {
       setActiveDraft(res.borrador);
       setOrdenes(res.borrador.ordenes);
+      setAsistentesText((res.borrador.asistentes ?? []).join(", "));
       setMotorUsado(res.motorUsado);
       setFallbackMotivo(res.fallbackMotivo);
       setCreatedResult(null);
@@ -80,14 +102,22 @@ export function DiscursoPage({ workspaceId }: DiscursoPageProps) {
       id,
       nextOrdenes,
       titulo,
+      asistentes,
     }: {
       id: string;
       nextOrdenes: DiscursoOrdenBorrador[];
       titulo: string;
-    }) => actualizarBorradorDiscurso(id, { titulo, ordenes: nextOrdenes }),
+      asistentes: string[];
+    }) =>
+      actualizarBorradorDiscurso(id, {
+        titulo,
+        ordenes: nextOrdenes,
+        asistentes,
+      }),
     onSuccess: (updated) => {
       setActiveDraft(updated);
       setOrdenes(updated.ordenes);
+      setAsistentesText((updated.asistentes ?? []).join(", "));
       void queryClient.invalidateQueries({
         queryKey: ["discurso-borradores", workspaceId],
       });
@@ -108,6 +138,7 @@ export function DiscursoPage({ workspaceId }: DiscursoPageProps) {
       if (activeDraft?.id === id) {
         setActiveDraft(null);
         setOrdenes([]);
+        setAsistentesText("");
         setCreatedResult(null);
       }
       void queryClient.invalidateQueries({
@@ -129,19 +160,23 @@ export function DiscursoPage({ workspaceId }: DiscursoPageProps) {
       id,
       nextOrdenes,
       titulo,
+      asistentes,
     }: {
       id: string;
       nextOrdenes: DiscursoOrdenBorrador[];
       titulo: string;
+      asistentes: string[];
     }) =>
       aprobarBorradorDiscurso(id, {
         titulo,
         defaultProyectoId: projects[0]?.id ?? null,
         ordenes: nextOrdenes,
+        asistentes,
       }),
     onSuccess: (res) => {
       setActiveDraft(res.borrador);
       setOrdenes(res.borrador.ordenes);
+      setAsistentesText((res.borrador.asistentes ?? []).join(", "));
       setCreatedResult(res);
       void queryClient.invalidateQueries({
         queryKey: ["discurso-borradores", workspaceId],
@@ -155,6 +190,31 @@ export function DiscursoPage({ workspaceId }: DiscursoPageProps) {
         error instanceof Error
           ? error.message
           : "No se pudieron crear las tareas.",
+      );
+    },
+  });
+
+  const downloadPdfMutation = useMutation({
+    mutationFn: async ({
+      id,
+      titulo,
+      asistentes,
+    }: {
+      id: string;
+      titulo: string;
+      asistentes: string[];
+    }) => {
+      const blob = await descargarActaPdf(id, { titulo, asistentes });
+      saveAs(blob, buildActaFilename(titulo));
+    },
+    onSuccess: () => {
+      toast.success("Acta PDF descargada.");
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo generar el Acta PDF.",
       );
     },
   });
@@ -178,6 +238,7 @@ export function DiscursoPage({ workspaceId }: DiscursoPageProps) {
   const handleSelectDraft = (draft: DiscursoBorrador) => {
     setActiveDraft(draft);
     setOrdenes(draft.ordenes);
+    setAsistentesText((draft.asistentes ?? []).join(", "));
     setMotorUsado(draft.motorUsado);
     setFallbackMotivo(undefined);
     setCreatedResult(null);
@@ -244,24 +305,40 @@ export function DiscursoPage({ workspaceId }: DiscursoPageProps) {
                 </Badge>
               </div>
               <div className="space-y-1.5">
-                {createdResult.tareas.map((task) => (
-                  <Link
-                    key={task.id}
-                    to="/dashboard/workspace/$workspaceId/project/$projectId/task/$taskId"
-                    params={{
-                      workspaceId,
-                      projectId: task.projectId,
-                      taskId: task.id,
-                    }}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-border/80 bg-background px-3 py-2 text-xs hover:bg-accent/50"
-                  >
-                    <span className="truncate font-medium text-foreground">
-                      {task.number ? `#${task.number} · ` : ""}
-                      {task.title}
-                    </span>
-                    <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
-                  </Link>
-                ))}
+                {createdResult.tareas.map((task) => {
+                  const matchedOrder = ordenes.find(
+                    (o) => o.createdTaskId === task.id,
+                  );
+                  return (
+                    <Link
+                      key={task.id}
+                      to="/dashboard/workspace/$workspaceId/project/$projectId/task/$taskId"
+                      params={{
+                        workspaceId,
+                        projectId: task.projectId,
+                        taskId: task.id,
+                      }}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border/80 bg-background px-3 py-2 text-xs hover:bg-accent/50"
+                    >
+                      <span className="flex min-w-0 items-center gap-2 font-medium text-foreground">
+                        {matchedOrder?.folio ? (
+                          <Badge
+                            variant="outline"
+                            size="sm"
+                            className="font-mono"
+                          >
+                            {matchedOrder.folio}
+                          </Badge>
+                        ) : null}
+                        <span className="truncate">
+                          {task.number ? `#${task.number} · ` : ""}
+                          {task.title}
+                        </span>
+                      </span>
+                      <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
+                    </Link>
+                  );
+                })}
               </div>
             </section>
           ) : null}
@@ -272,15 +349,27 @@ export function DiscursoPage({ workspaceId }: DiscursoPageProps) {
               projects={projects}
               motorUsado={motorUsado}
               fallbackMotivo={fallbackMotivo}
+              asistentesText={asistentesText}
+              onChangeAsistentesText={setAsistentesText}
               isSaving={saveMutation.isPending}
               isApproving={approveMutation.isPending}
+              isDownloadingPdf={downloadPdfMutation.isPending}
               canSaveDraft={activeDraft.id !== "preview"}
+              canDownloadPdf={activeDraft.id !== "preview"}
               onChangeOrdenes={setOrdenes}
               onSaveDraft={() =>
                 saveMutation.mutate({
                   id: activeDraft.id,
                   titulo: activeDraft.titulo,
                   nextOrdenes: ordenes,
+                  asistentes: parseAsistentes(asistentesText),
+                })
+              }
+              onDownloadPdf={() =>
+                downloadPdfMutation.mutate({
+                  id: activeDraft.id,
+                  titulo: activeDraft.titulo,
+                  asistentes: parseAsistentes(asistentesText),
                 })
               }
               onApprove={() =>
@@ -288,6 +377,7 @@ export function DiscursoPage({ workspaceId }: DiscursoPageProps) {
                   id: activeDraft.id,
                   titulo: activeDraft.titulo,
                   nextOrdenes: ordenes,
+                  asistentes: parseAsistentes(asistentesText),
                 })
               }
             />

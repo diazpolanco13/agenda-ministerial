@@ -443,7 +443,7 @@ const project = apiRouter<BaseVariables & { workspaceId: string }>()
     return c.json(projects.map(toPublicProject), 200);
   })
   .openapi(createProjectRoute, async (c) => {
-    const { name, icon, slug } = c.req.valid("json");
+    const { name, icon, slug, confidentialityLevel } = c.req.valid("json");
     const workspaceId = c.get("workspaceId");
     const newProject = await createProjectCtrl(
       workspaceId,
@@ -451,13 +451,14 @@ const project = apiRouter<BaseVariables & { workspaceId: string }>()
       icon,
       slug,
       c.get("userId"),
+      confidentialityLevel,
     );
     return c.json(toPublicProject(newProject), 200);
   })
   .openapi(getProjectRoute, async (c) => {
     const { id } = c.req.valid("param");
     const workspaceId = c.get("workspaceId");
-    const projectData = await getProjectCtrl(id, workspaceId);
+    const projectData = await getProjectCtrl(id, workspaceId, c.get("userId"));
     return c.json(toPublicProject(projectData), 200);
   })
   .openapi(getProjectBackgroundRoute, async (c) => {
@@ -537,8 +538,15 @@ const project = apiRouter<BaseVariables & { workspaceId: string }>()
   })
   .openapi(updateProjectRoute, async (c) => {
     const { id } = c.req.valid("param");
-    const { name, icon, slug, description, isPublic, includeSubtasks } =
-      c.req.valid("json");
+    const {
+      name,
+      icon,
+      slug,
+      description,
+      isPublic,
+      includeSubtasks,
+      confidentialityLevel,
+    } = c.req.valid("json");
     const workspaceId = c.get("workspaceId");
     const updatedProject = await updateProjectCtrl(
       id,
@@ -550,6 +558,7 @@ const project = apiRouter<BaseVariables & { workspaceId: string }>()
       workspaceId,
       await hasWorkspacePermission(c, { project: ["share"] }),
       includeSubtasks,
+      confidentialityLevel,
     );
     await publishEvent("project.updated", { projectId: id });
     return c.json(toPublicProject(updatedProject), 200);

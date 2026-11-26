@@ -11,6 +11,10 @@ import {
   or,
   sql,
 } from "drizzle-orm";
+import {
+  getConfidentialAuthorizedWorkspaceIds,
+  taskConfidentialitySqlFilter,
+} from "../../confidentiality/access";
 import db from "../../database";
 import {
   activityTable,
@@ -72,11 +76,19 @@ export async function getDelegatedTasks(
   const includeCompleted = options.includeCompleted !== false;
   const allWorkspaces = options.allWorkspaces === true;
 
-  const targetWorkspaceIds = await resolveReadableTaskWorkspaces(
-    workspaceId,
-    userId,
-    allWorkspaces,
-  );
+  const [targetWorkspaceIds, authorizedConfWsIds] = await Promise.all([
+    resolveReadableTaskWorkspaces(workspaceId, userId, allWorkspaces),
+    getConfidentialAuthorizedWorkspaceIds(userId),
+  ]);
+
+  const authorizedConfList = [...authorizedConfWsIds];
+  const confFilter =
+    authorizedConfList.length > 0
+      ? or(
+          inArray(projectTable.workspaceId, authorizedConfList),
+          taskConfidentialitySqlFilter(userId, false),
+        )
+      : taskConfidentialitySqlFilter(userId, false);
 
   const workspaceScope =
     targetWorkspaceIds.length === 1
@@ -184,6 +196,21 @@ export async function getDelegatedTasks(
       assigneeGrado: militarPerfilTable.grado,
       assigneeComponente: militarPerfilTable.componente,
       assigneeUnidad: militarPerfilTable.unidad,
+      projectConfidentialityLevel: projectTable.confidentialityLevel,
+      confidentialityLevel: taskTable.confidentialityLevel,
+      isOrder: taskTable.isOrder,
+      orderFolio: taskTable.orderFolio,
+      orderOrigin: taskTable.orderOrigin,
+      orderQuote: taskTable.orderQuote,
+      orderClosureStatus: taskTable.orderClosureStatus,
+      orderEvidenceText: taskTable.orderEvidenceText,
+      orderEvidenceAssetId: taskTable.orderEvidenceAssetId,
+      orderEvidenceSubmittedAt: taskTable.orderEvidenceSubmittedAt,
+      orderEvidenceSubmittedBy: taskTable.orderEvidenceSubmittedBy,
+      orderReviewedAt: taskTable.orderReviewedAt,
+      orderReviewedBy: taskTable.orderReviewedBy,
+      orderReviewComment: taskTable.orderReviewComment,
+      orderSealHash: taskTable.orderSealHash,
       lastActivityAt: lastActivity.createdAt,
       lastActivityType: lastActivity.type,
       lastRemindedAt: lastReminder.createdAt,
@@ -210,6 +237,7 @@ export async function getDelegatedTasks(
         createdByMe,
         completionCondition,
         projectAccessCondition(userId, projectTable.id),
+        confFilter,
       ),
     )
     .orderBy(

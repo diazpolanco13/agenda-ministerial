@@ -78,15 +78,21 @@ const EVENT_ROWS: Array<{
     description:
       "Cuando se apruebe una orden presidencial o ministerial asignada a ti.",
   },
+  {
+    key: "eventEscalation",
+    label: "Escalamientos de órdenes",
+    description:
+      "Alertas cuando una orden ministerial esté próxima a vencer o vencida.",
+  },
+  {
+    key: "eventDailyBrief",
+    label: "Parte diario 06:30",
+    description:
+      "Resumen matutino automático con tus órdenes, vencimientos y agenda del día.",
+  },
 ];
 
-function CopyInlineButton({
-  value,
-  label,
-}: {
-  value: string;
-  label: string;
-}) {
+function CopyInlineButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -138,7 +144,10 @@ export function NtfyNotificationsSection() {
   const [confirmDeactivateOpen, setConfirmDeactivateOpen] = useState(false);
 
   const qrTarget =
-    oneTimeCredentials?.appUri ?? status?.appUri ?? status?.subscribeUrl ?? null;
+    oneTimeCredentials?.appUri ??
+    status?.appUri ??
+    status?.subscribeUrl ??
+    null;
 
   useEffect(() => {
     if (!status?.enabled || !qrTarget) {
@@ -250,7 +259,9 @@ export function NtfyNotificationsSection() {
 
   const isActive = Boolean(status?.enabled);
   const publicUrl =
-    oneTimeCredentials?.serverUrl ?? status?.publicUrl ?? "https://ntfy.mppd.dev";
+    oneTimeCredentials?.serverUrl ??
+    status?.publicUrl ??
+    "https://ntfy.mppd.dev";
   const topic = oneTimeCredentials?.topic ?? status?.topic ?? null;
   const username = oneTimeCredentials?.username ?? status?.username ?? null;
   const subscribeUrl =
@@ -266,7 +277,10 @@ export function NtfyNotificationsSection() {
           stack
           icon={
             isActive ? (
-              <BellIcon className="size-4 text-emerald-600" aria-hidden="true" />
+              <BellIcon
+                className="size-4 text-emerald-600"
+                aria-hidden="true"
+              />
             ) : (
               <BellOffIcon className="size-4" aria-hidden="true" />
             )
@@ -289,7 +303,9 @@ export function NtfyNotificationsSection() {
             <Button
               type="button"
               size="sm"
-              disabled={isLoading || isBusy || status?.configuredOnServer === false}
+              disabled={
+                isLoading || isBusy || status?.configuredOnServer === false
+              }
               onClick={() => void handleActivate()}
             >
               <SmartphoneIcon className="size-3.5" aria-hidden="true" />
@@ -377,9 +393,9 @@ export function NtfyNotificationsSection() {
                     con tu usuario y contraseña de abajo.
                   </li>
                   <li>
-                    <span className="font-semibold">3.</span> Suscríbete al
-                    tema escaneando el código QR o agregando el tema privado
-                    indicado abajo.
+                    <span className="font-semibold">3.</span> Suscríbete al tema
+                    escaneando el código QR o agregando el tema privado indicado
+                    abajo.
                   </li>
                 </ol>
               </div>
@@ -465,7 +481,10 @@ export function NtfyNotificationsSection() {
                           }
                         >
                           {showPassword ? (
-                            <EyeOffIcon className="size-3.5" aria-hidden="true" />
+                            <EyeOffIcon
+                              className="size-3.5"
+                              aria-hidden="true"
+                            />
                           ) : (
                             <EyeIcon className="size-3.5" aria-hidden="true" />
                           )}

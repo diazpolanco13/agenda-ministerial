@@ -1,5 +1,6 @@
 import { ArrowRight, Calendar } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { CONFIDENTIALITY_LABELS } from "@/components/confidentiality/confidentiality-badge";
 import { propertyChipClass } from "@/components/custom-fields/property-chip-class";
 import icons from "@/constants/project-icons";
 import { cn } from "@/lib/cn";
@@ -9,6 +10,10 @@ import { getPriorityLabel } from "@/lib/i18n/domain";
 import { getPriorityIcon } from "@/lib/priority";
 import { TaskCustomFieldChips } from "../custom-fields/task-custom-field-chips";
 import TaskAssigneePopover from "../task-assignee-popover";
+import TaskConfidentialityPopover, {
+  getConfidentialityIcon,
+  normalizeConfidentialityLevel,
+} from "../task-confidentiality-popover";
 import TaskDueDatePopover from "../task-due-date-popover";
 import TaskLabelsPopover from "../task-labels-popover";
 import TaskMovePopover from "../task-move-popover";
@@ -159,6 +164,24 @@ export function PropertyChips({
             {projectContent}
           </span>
         )}
+        <TaskConfidentialityPopover task={task}>
+          <button
+            type="button"
+            data-task-action="confidentiality"
+            className={chip}
+          >
+            {getConfidentialityIcon(
+              normalizeConfidentialityLevel(task.confidentialityLevel),
+            )}
+            <span className="truncate">
+              {
+                CONFIDENTIALITY_LABELS[
+                  normalizeConfidentialityLevel(task.confidentialityLevel)
+                ]
+              }
+            </span>
+          </button>
+        </TaskConfidentialityPopover>
         <TaskCustomFieldChips
           taskId={taskId}
           projectId={projectId}

@@ -1,5 +1,9 @@
 import { and, desc, eq, gte, inArray, isNull, ne } from "drizzle-orm";
 import { redactInaccessibleMoves } from "../../activity/redact-inaccessible-moves";
+import {
+  canViewConfidentialInWorkspace,
+  taskConfidentialitySqlFilter,
+} from "../../confidentiality/access";
 import db from "../../database";
 import {
   activityTable,
@@ -130,9 +134,14 @@ export async function getExecutiveSummary(
 ) {
   await validateWorkspaceAccess(userId, workspaceId, apiKeyId);
 
-  const [restrictedResponsable, [currentUserRow], accessibleProjects] =
-    await Promise.all([
-      isRestrictedResponsable(userId, workspaceId),
+  const [
+    restrictedResponsable,
+    canViewConf,
+    [currentUserRow],
+    accessibleProjects,
+  ] = await Promise.all([
+    isRestrictedResponsable(userId, workspaceId),
+    canViewConfidentialInWorkspace(userId, workspaceId),
       db
         .select({
           userId: userTable.id,
@@ -219,12 +228,17 @@ export async function getExecutiveSummary(
     accessibleProjects.map((project) => [project.id, project]),
   );
 
+  const confTaskFilter = taskConfidentialitySqlFilter(userId, canViewConf);
+
   const taskConditions = [
     inArray(taskTable.projectId, projectIds),
     ne(taskTable.status, "archived"),
   ];
   if (restrictedResponsable) {
     taskConditions.push(eq(taskTable.userId, userId));
+  }
+  if (confTaskFilter) {
+    taskConditions.push(confTaskFilter);
   }
 
   const [columns, rawTasks, labelRows, discursoRows] = await Promise.all([
@@ -251,6 +265,9 @@ export async function getExecutiveSummary(
         startDate: taskTable.startDate,
         dueDate: taskTable.dueDate,
         createdAt: taskTable.createdAt,
+        isOrder: taskTable.isOrder,
+        orderFolio: taskTable.orderFolio,
+        orderClosureStatus: taskTable.orderClosureStatus,
         assigneeId: taskTable.userId,
         assigneeName: userTable.name,
         assigneeImage: userTable.image,
@@ -261,6 +278,7 @@ export async function getExecutiveSummary(
         assigneeUnidad: militarPerfilTable.unidad,
       })
       .from(taskTable)
+      .innerJoin(projectTable, eq(taskTable.projectId, projectTable.id))
       .leftJoin(userTable, eq(taskTable.userId, userTable.id))
       .leftJoin(
         militarPerfilTable,
@@ -322,6 +340,7 @@ export async function getExecutiveSummary(
       ? column.isFinal
       : task.status === "done" || task.status === "completed";
     const esOrden =
+      Boolean(task.isOrder) ||
       orderTaskIds.has(task.id) ||
       hasDiscursoOriginDescription(task.description);
     const project = projectById.get(task.projectId);
@@ -352,6 +371,8 @@ export async function getExecutiveSummary(
       createdAt: task.createdAt,
       isCompleted,
       esOrden,
+      orderFolio: task.orderFolio,
+      orderClosureStatus: task.orderClosureStatus,
       responsable:
         task.assigneeId && assigneeMeta
           ? {
@@ -482,6 +503,8 @@ export async function getExecutiveSummary(
       priority: task.priority,
       completada: task.isCompleted,
       esOrden: task.esOrden,
+      orderFolio: task.orderFolio,
+      orderClosureStatus: task.orderClosureStatus,
       dueDate: task.dueDate,
       createdAt: task.createdAt,
       responsable: task.responsable,
@@ -547,6 +570,9 @@ export async function getExecutiveSummary(
   ];
   if (restrictedResponsable) {
     activityConditions.push(eq(taskTable.userId, userId));
+  }
+  if (confTaskFilter) {
+    activityConditions.push(confTaskFilter);
   }
 
   const rawActivities = await db

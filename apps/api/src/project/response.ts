@@ -28,6 +28,7 @@ export const projectSchema = z
       description:
         "Highest task number issued in this project; the next task gets this plus one.",
     }),
+    confidentialityLevel: z.string().optional(),
   })
   .openapi("Project");
 

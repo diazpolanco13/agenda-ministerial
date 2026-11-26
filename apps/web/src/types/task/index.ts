@@ -51,6 +51,21 @@ type Task = {
   labels?: TaskLabel[];
   externalLinks?: TaskExternalLink[];
   customFieldValues?: TaskCustomFieldValue[];
+  confidentialityLevel?: string | null;
+  projectConfidentialityLevel?: string | null;
+  isOrder?: boolean | null;
+  orderFolio?: string | null;
+  orderOrigin?: string | null;
+  orderQuote?: string | null;
+  orderClosureStatus?: string | null;
+  orderEvidenceText?: string | null;
+  orderEvidenceAssetId?: string | null;
+  orderEvidenceSubmittedAt?: string | null;
+  orderEvidenceSubmittedBy?: string | null;
+  orderReviewedAt?: string | null;
+  orderReviewedBy?: string | null;
+  orderReviewComment?: string | null;
+  orderSealHash?: string | null;
 };
 
 export default Task;

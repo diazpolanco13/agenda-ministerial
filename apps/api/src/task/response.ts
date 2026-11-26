@@ -9,6 +9,24 @@ import { taskRecurrenceSchema } from "./recurrence/schema";
 
 const priorityDescription = "One of: no-priority, low, medium, high, urgent.";
 
+const orderAndConfidentialityFields = {
+  confidentialityLevel: z.string().nullable().optional(),
+  isOrder: z.boolean().nullable().optional(),
+  orderFolio: z.string().nullable().optional(),
+  orderOrigin: z.string().nullable().optional(),
+  orderQuote: z.string().nullable().optional(),
+  orderClosureStatus: z.string().nullable().optional(),
+  orderEvidenceText: z.string().nullable().optional(),
+  orderEvidenceAssetId: z.string().nullable().optional(),
+  orderEvidenceSubmittedAt: nullableResponseTimestamp.optional(),
+  orderEvidenceSubmittedBy: z.string().nullable().optional(),
+  orderReviewedAt: nullableResponseTimestamp.optional(),
+  orderReviewedBy: z.string().nullable().optional(),
+  orderReviewComment: z.string().nullable().optional(),
+  orderSealHash: z.string().nullable().optional(),
+  projectConfidentialityLevel: z.string().nullable().optional(),
+};
+
 export const taskSchema = z
   .object({
     id: z.string(),
@@ -40,6 +58,7 @@ export const taskSchema = z
     customFields: z
       .array(z.object({ fieldId: z.string(), value: z.string() }))
       .optional(),
+    ...orderAndConfidentialityFields,
   })
   .openapi("Task");
 
@@ -143,6 +162,7 @@ export const boardTaskSchema = z
       }),
     labels: z.array(taskLabelSchema),
     externalLinks: z.array(taskExternalLinkSchema),
+    ...orderAndConfidentialityFields,
   })
   .openapi("BoardTask");
 
@@ -359,6 +379,7 @@ export const assignedTasksSchema = z
           assigneeComponente: z.string().nullable().optional(),
           assigneeUnidad: z.string().nullable().optional(),
           labels: z.array(taskLabelSchema),
+          ...orderAndConfidentialityFields,
         })
         .openapi("AssignedTask"),
     ),
@@ -414,6 +435,7 @@ export const delegatedTasksSchema = z
           total: z.number(),
         }),
         labels: z.array(taskLabelSchema),
+        ...orderAndConfidentialityFields,
       }),
     ),
     total: z.number(),

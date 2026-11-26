@@ -7,6 +7,7 @@ import WorkspaceLayout from "@/components/common/workspace-layout";
 import { AgendaTodayCard } from "@/components/executive/agenda-today-card";
 import { CommandHeader } from "@/components/executive/command-header";
 import { CompactActivityCard } from "@/components/executive/compact-activity-card";
+import { DailyBriefCard } from "@/components/executive/daily-brief-card";
 import { KpiStrip } from "@/components/executive/kpi-strip";
 import { RecentOrdersCard } from "@/components/executive/recent-orders-card";
 import { TopResponsablesCard } from "@/components/executive/top-responsables-card";
@@ -84,6 +85,8 @@ function RouteComponent() {
               kpis={summary?.kpis}
               isLoading={executiveQuery.isLoading}
             />
+
+            <DailyBriefCard workspaceId={workspaceId} />
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
               <div className="flex min-w-0 flex-col gap-6">

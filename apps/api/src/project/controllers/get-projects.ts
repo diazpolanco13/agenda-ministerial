@@ -1,4 +1,9 @@
 import { and, count, eq, isNull, min, sql } from "drizzle-orm";
+import {
+  canViewConfidentialInWorkspace,
+  projectConfidentialitySqlFilter,
+  taskConfidentialitySqlFilter,
+} from "../../confidentiality/access";
 import db from "../../database";
 import { projectTable, taskTable } from "../../database/schema";
 import { projectAccessCondition } from "../../project-access/project-access-condition";
@@ -19,6 +24,7 @@ async function getProjectStatistics(
   workspaceId: string,
   userId: string,
   includeArchived: boolean,
+  canViewConfidential: boolean,
 ) {
   const statisticsByProject = new Map<string, ProjectStatistics>();
 
@@ -40,12 +46,12 @@ async function getProjectStatistics(
     .from(taskTable)
     .innerJoin(projectTable, eq(taskTable.projectId, projectTable.id))
     .where(
-      includeArchived
-        ? eq(projectTable.workspaceId, workspaceId)
-        : and(
-            eq(projectTable.workspaceId, workspaceId),
-            isNull(projectTable.archivedAt),
-          ),
+      and(
+        eq(projectTable.workspaceId, workspaceId),
+        includeArchived ? undefined : isNull(projectTable.archivedAt),
+        projectConfidentialitySqlFilter(canViewConfidential),
+        taskConfidentialitySqlFilter(userId, canViewConfidential),
+      ),
     )
     .groupBy(taskTable.projectId)
     .having(projectAccessCondition(userId, taskTable.projectId));
@@ -70,11 +76,17 @@ async function getProjects(
   userId: string,
   includeArchived = false,
 ) {
+  const canViewConfidential = await canViewConfidentialInWorkspace(
+    userId,
+    workspaceId,
+  );
+
   const projects = await db.query.projectTable.findMany({
     where: and(
       eq(projectTable.workspaceId, workspaceId),
       includeArchived ? undefined : isNull(projectTable.archivedAt),
       projectAccessCondition(userId, projectTable.id),
+      projectConfidentialitySqlFilter(canViewConfidential),
     ),
     // `id` is the deterministic tie-breaker: without it, rows sharing both a
     // position and a createdAt come back in an unspecified order.
@@ -89,6 +101,7 @@ async function getProjects(
     workspaceId,
     userId,
     includeArchived,
+    canViewConfidential,
   );
 
   return projects.map((project) => ({

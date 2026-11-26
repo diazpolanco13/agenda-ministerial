@@ -6,6 +6,7 @@ import {
   type LucideIcon,
   Mail,
   Mic,
+  ScrollText,
   Users,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -62,6 +63,11 @@ export function NavMain() {
       icon: CircleCheck,
       url: `${homeUrl}/my-tasks`,
       count: assignedTasks?.total,
+    },
+    {
+      title: t("navigation:sidebar.orders", { defaultValue: "Órdenes" }),
+      icon: ScrollText,
+      url: `${homeUrl}/ordenes`,
     },
     {
       title: t("navigation:sidebar.fromSpeech"),

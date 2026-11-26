@@ -4,6 +4,10 @@ import { SquarePlusIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  CONFIDENTIALITY_LABELS,
+  type ConfidentialityLevel,
+} from "@/components/confidentiality/confidentiality-badge";
+import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbList,
@@ -24,6 +28,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import icons from "@/constants/project-icons";
 import useCreateProject from "@/hooks/mutations/project/use-create-project";
 import { prefetchBoard } from "@/hooks/queries/task/prefetch-board";
@@ -45,6 +56,8 @@ function CreateProjectModal({ open, onClose }: CreateProjectModalProps) {
   const [selectedIcon, setSelectedIcon] = useState("Layout");
   const [iconPopoverOpen, setIconPopoverOpen] = useState(false);
   const [iconSearch, setIconSearch] = useState("");
+  const [confidentialityLevel, setConfidentialityLevel] =
+    useState<ConfidentialityLevel>("publica_interna");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
   const { data: workspace } = useActiveWorkspace();
@@ -54,6 +67,10 @@ function CreateProjectModal({ open, onClose }: CreateProjectModalProps) {
     slug,
     workspaceId: workspace?.id ?? "",
     icon: selectedIcon,
+    confidentialityLevel:
+      confidentialityLevel !== "publica_interna"
+        ? confidentialityLevel
+        : undefined,
   });
   const SelectedIcon =
     icons[selectedIcon as keyof typeof icons] || icons.Layout;
@@ -66,6 +83,7 @@ function CreateProjectModal({ open, onClose }: CreateProjectModalProps) {
     setName("");
     setSlug("");
     setSelectedIcon("Layout");
+    setConfidentialityLevel("publica_interna");
     setIconPopoverOpen(false);
     setIconSearch("");
     onClose();
@@ -227,6 +245,46 @@ function CreateProjectModal({ open, onClose }: CreateProjectModalProps) {
                   example: slug || "ABC",
                 })}
               </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-foreground">
+                  Nivel de confidencialidad
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Controla el acceso al proyecto y sus tareas.
+                </p>
+              </div>
+              <Select
+                value={confidentialityLevel}
+                onValueChange={(value) => {
+                  if (
+                    value === "publica_interna" ||
+                    value === "reservada" ||
+                    value === "confidencial"
+                  ) {
+                    setConfidentialityLevel(value);
+                  }
+                }}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className="w-40 shrink-0"
+                  aria-label="Nivel de confidencialidad"
+                >
+                  <SelectValue>
+                    {CONFIDENTIALITY_LABELS[confidentialityLevel]}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="publica_interna">
+                    Pública interna
+                  </SelectItem>
+                  <SelectItem value="reservada">Reservada</SelectItem>
+                  <SelectItem value="confidencial">Confidencial</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             {canImport && (
               <p className="text-muted-foreground text-xs">

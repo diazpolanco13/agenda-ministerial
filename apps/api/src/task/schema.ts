@@ -1,3 +1,4 @@
+import { CONFIDENTIALITY_LEVELS } from "../confidentiality/access";
 import { pagingNumber, z } from "../openapi";
 import { MAX_TASK_POSITION } from "./controllers/next-task-position";
 import { taskRecurrenceSchema } from "./recurrence/schema";
@@ -51,6 +52,8 @@ export const remindDelegatedTaskBody = z.object({
 });
 
 const priority = z.enum(VALID_PRIORITIES);
+const confidentialityLevel = z.enum(CONFIDENTIALITY_LEVELS);
+const orderOrigin = z.enum(["discurso", "audiencia", "verbal", "escrita"]);
 
 // Required object of optional filters: a RouteParameter cannot itself be optional.
 export const listTasksQuery = z.object({
@@ -102,6 +105,10 @@ export const createTaskBody = z.object({
   customFields: z
     .array(z.object({ fieldId: z.string(), value: z.string() }))
     .optional(),
+  confidentialityLevel: confidentialityLevel.optional(),
+  isOrder: z.boolean().optional(),
+  orderOrigin: orderOrigin.optional(),
+  orderQuote: z.string().max(2000).nullable().optional(),
 });
 
 export const updateTaskBody = z.object({
@@ -117,6 +124,7 @@ export const updateTaskBody = z.object({
   projectId: z.string(),
   position: z.number().int().min(0).max(MAX_TASK_POSITION),
   userId: z.string().optional(),
+  confidentialityLevel: confidentialityLevel.optional(),
 });
 
 export const moveTaskBody = z.object({

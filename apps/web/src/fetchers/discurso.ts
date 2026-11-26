@@ -47,6 +47,7 @@ export type DiscursoOrdenBorrador = {
   citaTextual: string;
   confianza: number;
   createdTaskId?: string | null;
+  folio?: string | null;
 };
 
 export type DiscursoBorrador = {
@@ -61,6 +62,7 @@ export type DiscursoBorrador = {
   motorUsado: string;
   estado: string;
   ordenes: DiscursoOrdenBorrador[];
+  asistentes?: string[];
   tareasCreadas: number;
   aprobadoEn: string | null;
   createdAt: string;
@@ -151,6 +153,7 @@ export async function actualizarBorradorDiscurso(
     titulo?: string;
     fechaDiscurso?: string | null;
     ordenes?: DiscursoOrdenBorrador[];
+    asistentes?: string[];
   },
 ): Promise<DiscursoBorrador> {
   const response = await fetch(
@@ -190,6 +193,7 @@ export async function aprobarBorradorDiscurso(
     titulo?: string;
     defaultProyectoId?: string | null;
     ordenes?: DiscursoOrdenBorrador[];
+    asistentes?: string[];
   },
 ): Promise<AprobarBorradorResponse> {
   const response = await fetch(
@@ -205,4 +209,25 @@ export async function aprobarBorradorDiscurso(
     throw await HttpError.fromResponse(response);
   }
   return (await response.json()) as AprobarBorradorResponse;
+}
+
+export async function descargarActaPdf(
+  borradorId: string,
+  payload?: { titulo?: string; asistentes?: string[] },
+): Promise<Blob> {
+  const response = await fetch(
+    getApiUrl(
+      `/discurso/borradores/${encodeURIComponent(borradorId)}/acta-pdf`,
+    ),
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload ?? {}),
+    },
+  );
+  if (!response.ok) {
+    throw await HttpError.fromResponse(response);
+  }
+  return response.blob();
 }

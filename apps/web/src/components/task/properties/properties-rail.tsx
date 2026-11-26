@@ -1,5 +1,6 @@
 import { Calendar, CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { CONFIDENTIALITY_LABELS } from "@/components/confidentiality/confidentiality-badge";
 import icons from "@/constants/project-icons";
 import { getColumnIcon } from "@/lib/column";
 import { cn } from "@/lib/cn";
@@ -8,6 +9,10 @@ import { getPriorityLabel } from "@/lib/i18n/domain";
 import { getPriorityIcon } from "@/lib/priority";
 import { TaskCustomFieldRows } from "../custom-fields/task-custom-field-rows";
 import TaskAssigneePopover from "../task-assignee-popover";
+import TaskConfidentialityPopover, {
+  getConfidentialityIcon,
+  normalizeConfidentialityLevel,
+} from "../task-confidentiality-popover";
 import TaskDueDatePopover from "../task-due-date-popover";
 import TaskLabelsPopover from "../task-labels-popover";
 import TaskMovePopover from "../task-move-popover";
@@ -171,6 +176,23 @@ export function PropertiesRail({
               {projectValue}
             </div>
           )}
+        </PropertyRow>
+
+        <PropertyRow label="Confidencialidad">
+          <TaskConfidentialityPopover task={task}>
+            <PropertyValue data-task-action="confidentiality">
+              {getConfidentialityIcon(
+                normalizeConfidentialityLevel(task.confidentialityLevel),
+              )}
+              <span className="truncate">
+                {
+                  CONFIDENTIALITY_LABELS[
+                    normalizeConfidentialityLevel(task.confidentialityLevel)
+                  ]
+                }
+              </span>
+            </PropertyValue>
+          </TaskConfidentialityPopover>
         </PropertyRow>
       </div>
 

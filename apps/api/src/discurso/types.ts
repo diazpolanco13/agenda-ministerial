@@ -46,5 +46,6 @@ export type DiscursoOrdenBorrador = {
   prioridad: DiscursoPrioridad;
   citaTextual: string;
   confianza: number;
+  folio?: string | null;
   createdTaskId?: string | null;
 };

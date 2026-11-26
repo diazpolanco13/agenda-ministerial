@@ -7,12 +7,17 @@ import {
   gte,
   inArray,
   lte,
+  ne,
   type SQL,
   type SQLWrapper,
   sql,
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
+import {
+  canViewConfidentialInWorkspace,
+  taskConfidentialitySqlFilter,
+} from "../../confidentiality/access";
 import { publicExternalLink } from "../../project/controllers/public-external-link";
 import {
   columnTable,
@@ -121,7 +126,26 @@ async function getTasksPage(
     });
   }
 
-  const conditions = [eq(taskTable.projectId, projectId)];
+  if (options.publicOnly && project.confidentialityLevel === "confidencial") {
+    throw new HTTPException(403, {
+      message: "Project is not public",
+    });
+  }
+
+  const conditions: SQL[] = [eq(taskTable.projectId, projectId)];
+
+  if (options.publicOnly) {
+    conditions.push(ne(taskTable.confidentialityLevel, "confidencial"));
+  } else if (userId) {
+    const canViewConf = await canViewConfidentialInWorkspace(
+      userId,
+      project.workspaceId,
+    );
+    const confFilter = taskConfidentialitySqlFilter(userId, canViewConf);
+    if (confFilter) {
+      conditions.push(confFilter);
+    }
+  }
 
   if (
     !options.publicOnly &&
@@ -179,6 +203,7 @@ async function getTasksPage(
       ]),
     })
     .from(taskTable)
+    .innerJoin(projectTable, eq(taskTable.projectId, projectTable.id))
     .$dynamic();
   const [taskCount] = await (
     options.publicOnly
@@ -219,6 +244,37 @@ async function getTasksPage(
       ? sql<string | null>`null`
       : militarPerfilTable.unidad,
     projectId: taskTable.projectId,
+    projectConfidentialityLevel: projectTable.confidentialityLevel,
+    confidentialityLevel: taskTable.confidentialityLevel,
+    isOrder: taskTable.isOrder,
+    orderFolio: taskTable.orderFolio,
+    orderOrigin: taskTable.orderOrigin,
+    orderQuote: taskTable.orderQuote,
+    orderClosureStatus: taskTable.orderClosureStatus,
+    orderEvidenceText: options.publicOnly
+      ? sql<string | null>`null`
+      : taskTable.orderEvidenceText,
+    orderEvidenceAssetId: options.publicOnly
+      ? sql<string | null>`null`
+      : taskTable.orderEvidenceAssetId,
+    orderEvidenceSubmittedAt: options.publicOnly
+      ? sql<Date | null>`null`
+      : taskTable.orderEvidenceSubmittedAt,
+    orderEvidenceSubmittedBy: options.publicOnly
+      ? sql<string | null>`null`
+      : taskTable.orderEvidenceSubmittedBy,
+    orderReviewedAt: options.publicOnly
+      ? sql<Date | null>`null`
+      : taskTable.orderReviewedAt,
+    orderReviewedBy: options.publicOnly
+      ? sql<string | null>`null`
+      : taskTable.orderReviewedBy,
+    orderReviewComment: options.publicOnly
+      ? sql<string | null>`null`
+      : taskTable.orderReviewComment,
+    orderSealHash: options.publicOnly
+      ? sql<string | null>`null`
+      : taskTable.orderSealHash,
   };
 
   const baseQuery = db

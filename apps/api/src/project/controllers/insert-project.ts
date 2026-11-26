@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { normalizeConfidentialityLevel } from "../../confidentiality/access";
 import type db from "../../database";
 import { columnTable, projectTable } from "../../database/schema";
 import { grantProjectToRestrictedMember } from "../../project-access/grant-project-to-restricted-member";
@@ -16,6 +17,7 @@ export type NewProject = {
   icon: string;
   slug: string;
   userId: string;
+  confidentialityLevel?: string;
 };
 
 export type ProjectPlacement = {
@@ -45,7 +47,7 @@ async function seedDefaultColumns(tx: Transaction, projectId: string) {
 
 export async function insertProject(
   tx: Transaction,
-  { workspaceId, name, icon, slug, userId }: NewProject,
+  { workspaceId, name, icon, slug, userId, confidentialityLevel }: NewProject,
 ) {
   // Serialize ordering writes per workspace: without this, two concurrent
   // creates can read the same max(position) and land on the same slot, and a
@@ -59,7 +61,14 @@ export async function insertProject(
 
   const [createdProject] = await tx
     .insert(projectTable)
-    .values({ workspaceId, name, icon, slug, position })
+    .values({
+      workspaceId,
+      name,
+      icon,
+      slug,
+      position,
+      confidentialityLevel: normalizeConfidentialityLevel(confidentialityLevel),
+    })
     .returning();
 
   if (createdProject) {

@@ -5,7 +5,9 @@ import type Task from "@/types/task";
 export type Project = Extract<
   InferResponseType<(typeof client)["project"][":id"]["$get"], 200>,
   { id: string }
->;
+> & {
+  confidentialityLevel?: string | null;
+};
 
 type TasksApiResponse = InferResponseType<
   (typeof client)["task"]["tasks"][":projectId"]["$get"],
@@ -20,6 +22,7 @@ export type ProjectWithTasks = Omit<
 > & {
   // Older cache fixtures and persisted query data predate board backgrounds.
   backgroundVersion?: string | null;
+  confidentialityLevel?: string | null;
   archivedTasks: Task[];
   columns: Array<
     Omit<ProjectWithTasksRaw["columns"][number], "tasks"> & {

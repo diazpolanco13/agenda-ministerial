@@ -632,6 +632,9 @@ const updateTaskStatusRoute = createRoute({
       "No access to the project, or missing task:update permission",
     ),
     404: errorResponse("Task not found"),
+    409: errorResponse(
+      "Order requires attaching evidence and approval before closing",
+    ),
   },
 });
 
@@ -1061,6 +1064,10 @@ const task = apiRouter<BaseVariables & { workspaceId: string }>()
       recurrence,
       customFields,
       draftAssetIds,
+      confidentialityLevel,
+      isOrder,
+      orderOrigin,
+      orderQuote,
     } = c.req.valid("json");
 
     const parsedStartDate =
@@ -1087,6 +1094,10 @@ const task = apiRouter<BaseVariables & { workspaceId: string }>()
       recurrence,
       customFields,
       draftAssetIds,
+      confidentialityLevel,
+      isOrder,
+      orderOrigin,
+      orderQuote,
     });
 
     return c.json(task, 200);
@@ -1159,6 +1170,7 @@ const task = apiRouter<BaseVariables & { workspaceId: string }>()
       projectId,
       position,
       userId,
+      confidentialityLevel,
     } = c.req.valid("json");
 
     const currentUserId = c.get("userId");
@@ -1186,6 +1198,7 @@ const task = apiRouter<BaseVariables & { workspaceId: string }>()
       position,
       userId,
       currentUserId,
+      confidentialityLevel,
     );
 
     return c.json(task, 200);

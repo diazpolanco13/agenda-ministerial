@@ -1,4 +1,7 @@
+import { CONFIDENTIALITY_LEVELS } from "../confidentiality/access";
 import { z } from "../openapi";
+
+const confidentialityLevelSchema = z.enum(CONFIDENTIALITY_LEVELS);
 
 export const projectParam = z.object({ id: z.string() });
 
@@ -16,6 +19,7 @@ export const createProjectBody = z.object({
   workspaceId: z.string(),
   icon: z.string(),
   slug: z.string(),
+  confidentialityLevel: confidentialityLevelSchema.optional(),
 });
 
 export const updateProjectBody = z.object({
@@ -25,6 +29,7 @@ export const updateProjectBody = z.object({
   description: z.string(),
   isPublic: z.boolean(),
   includeSubtasks: z.boolean().optional(),
+  confidentialityLevel: confidentialityLevelSchema.optional(),
 });
 
 export const reorderProjectsBody = z.object({

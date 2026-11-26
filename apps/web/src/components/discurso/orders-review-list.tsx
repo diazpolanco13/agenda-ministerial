@@ -2,9 +2,11 @@ import {
   CheckCircle2,
   ChevronDown,
   Cpu,
+  FileDown,
   Quote,
   Save,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { useState } from "react";
 import { OrderCandidatePicker } from "@/components/discurso/order-candidate-picker";
@@ -24,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   DiscursoOrdenBorrador,
   DiscursoPrioridad,
@@ -40,11 +43,16 @@ type OrdersReviewListProps = {
   projects: ProjectOption[];
   motorUsado: string;
   fallbackMotivo?: string;
+  asistentesText: string;
+  onChangeAsistentesText: (next: string) => void;
   isSaving: boolean;
   isApproving: boolean;
+  isDownloadingPdf: boolean;
   canSaveDraft: boolean;
+  canDownloadPdf: boolean;
   onChangeOrdenes: (next: DiscursoOrdenBorrador[]) => void;
   onSaveDraft: () => void;
+  onDownloadPdf: () => void;
   onApprove: () => void;
 };
 
@@ -61,11 +69,16 @@ export function OrdersReviewList({
   projects,
   motorUsado,
   fallbackMotivo,
+  asistentesText,
+  onChangeAsistentesText,
   isSaving,
   isApproving,
+  isDownloadingPdf,
   canSaveDraft,
+  canDownloadPdf,
   onChangeOrdenes,
   onSaveDraft,
+  onDownloadPdf,
   onApprove,
 }: OrdersReviewListProps) {
   const [bulkProjectId, setBulkProjectId] = useState<string>("");
@@ -136,6 +149,20 @@ export function OrdersReviewList({
             </div>
           ) : null}
 
+          {canDownloadPdf ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              loading={isDownloadingPdf}
+              disabled={isSaving || isApproving}
+              onClick={onDownloadPdf}
+            >
+              <FileDown className="size-3.5" />
+              Descargar Acta PDF
+            </Button>
+          ) : null}
+
           {canSaveDraft ? (
             <Button
               type="button"
@@ -163,6 +190,24 @@ export function OrdersReviewList({
             {selectedPendingCount === 1 ? "tarea" : "tareas"}
           </Button>
         </div>
+      </div>
+
+      <div className="space-y-1.5 rounded-lg border border-border/70 bg-muted/20 p-3">
+        <label
+          htmlFor="discurso-asistentes"
+          className="flex items-center gap-1.5 font-medium text-xs text-muted-foreground"
+        >
+          <Users className="size-3.5" />
+          <span>Asistentes (opcional, para el Acta PDF)</span>
+        </label>
+        <Textarea
+          id="discurso-asistentes"
+          rows={2}
+          value={asistentesText}
+          onChange={(event) => onChangeAsistentesText(event.target.value)}
+          placeholder="Nombres y grados separados por comas o líneas..."
+          className="min-h-14 text-xs"
+        />
       </div>
 
       {ordenes.length === 0 ? (
@@ -210,7 +255,9 @@ export function OrdersReviewList({
                       {isCreated ? (
                         <Badge variant="success" size="sm" className="ml-auto">
                           <CheckCircle2 className="size-3" />
-                          Tarea creada
+                          {orden.folio
+                            ? `${orden.folio} · Tarea creada`
+                            : "Tarea creada"}
                         </Badge>
                       ) : null}
                     </div>

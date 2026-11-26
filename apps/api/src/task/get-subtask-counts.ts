@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { projectTable, taskRelationTable, taskTable } from "../database/schema";
 import { projectAccessCondition } from "../project-access/project-access-condition";
 import type { TaskReadDatabase } from "./bounded-read";
@@ -34,6 +34,12 @@ export async function getSubtaskCounts(
         eq(taskRelationTable.relationType, "subtask"),
         eq(projectTable.workspaceId, workspaceId),
         publicOnly ? eq(projectTable.isPublic, true) : undefined,
+        publicOnly
+          ? ne(projectTable.confidentialityLevel, "confidencial")
+          : undefined,
+        publicOnly
+          ? ne(taskTable.confidentialityLevel, "confidencial")
+          : undefined,
         userId ? projectAccessCondition(userId, projectTable.id) : undefined,
       ),
     )

@@ -1,5 +1,10 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { type UseFormReturn, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import {
+  CONFIDENTIALITY_LABELS,
+  type ConfidentialityLevel,
+} from "@/components/confidentiality/confidentiality-badge";
 import { ProjectBackgroundRow } from "@/components/settings/project-general/project-background-row";
 import type { ProjectFormValues } from "@/components/settings/project-general/project-form-values";
 import { ProjectIconPicker } from "@/components/settings/project-general/project-icon-picker";
@@ -7,9 +12,19 @@ import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsFormRow } from "@/components/settings/settings-form-row";
 import { SettingsRow } from "@/components/settings/settings-row";
 import { SettingsSection } from "@/components/settings/settings-section";
+import { normalizeConfidentialityLevel } from "@/components/task/task-confidentiality-popover";
 import { Form, FormField } from "@/components/ui/form";
-import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import useUpdateProject from "@/hooks/mutations/project/use-update-project";
+import { toast } from "@/lib/toast";
 import type { ProjectWithTasks } from "@/types/project";
 
 type ProjectDetailsSectionProps = {
@@ -24,8 +39,55 @@ export function ProjectDetailsSection({
   canEdit,
 }: ProjectDetailsSectionProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { mutateAsync: updateProject, isPending: isUpdatingConfidentiality } =
+    useUpdateProject();
   const slug = useWatch({ control: form.control, name: "slug" });
   const icon = useWatch({ control: form.control, name: "icon" });
+  const currentConfidentiality = normalizeConfidentialityLevel(
+    project?.confidentialityLevel,
+  );
+
+  const handleConfidentialityChange = async (value: string | null) => {
+    if (
+      !project?.id ||
+      (value !== "publica_interna" &&
+        value !== "reservada" &&
+        value !== "confidencial") ||
+      value === currentConfidentiality
+    ) {
+      return;
+    }
+
+    try {
+      await updateProject({
+        id: project.id,
+        name: project.name,
+        icon: project.icon || "Layout",
+        slug: project.slug,
+        description: project.description ?? "",
+        isPublic: !!project.isPublic,
+        confidentialityLevel: value as ConfidentialityLevel,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["tasks", project.id] }),
+        queryClient.invalidateQueries({ queryKey: ["projects"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["projects", project.workspaceId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["projects", project.workspaceId, project.id],
+        }),
+      ]);
+      toast.success("Confidencialidad del proyecto actualizada.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo actualizar la confidencialidad.",
+      );
+    }
+  };
 
   return (
     <SettingsSection title={t("settings:projectGeneral.projectInfoTitle")}>
@@ -119,6 +181,33 @@ export function ProjectDetailsSection({
               />
             </SettingsRow>
             <ProjectBackgroundRow project={project} canEdit={canEdit} />
+            <SettingsRow
+              title="Nivel de confidencialidad"
+              description="Controla quién puede visualizar este proyecto y sus tareas."
+            >
+              <Select
+                value={currentConfidentiality}
+                disabled={!canEdit || !project?.id || isUpdatingConfidentiality}
+                onValueChange={handleConfidentialityChange}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className="sm:w-48"
+                  aria-label="Nivel de confidencialidad"
+                >
+                  <SelectValue>
+                    {CONFIDENTIALITY_LABELS[currentConfidentiality]}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="publica_interna">
+                    Pública interna
+                  </SelectItem>
+                  <SelectItem value="reservada">Reservada</SelectItem>
+                  <SelectItem value="confidencial">Confidencial</SelectItem>
+                </SelectContent>
+              </Select>
+            </SettingsRow>
           </SettingsCard>
         </form>
       </Form>

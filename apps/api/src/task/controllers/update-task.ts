@@ -1,5 +1,6 @@
 import { and, eq, getTableColumns, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
+import { normalizeConfidentialityLevel } from "../../confidentiality/access";
 import db from "../../database";
 import { columnTable, projectTable, taskTable } from "../../database/schema";
 import { publishEvent } from "../../events";
@@ -27,6 +28,7 @@ async function updateTask(
   position: number,
   userId?: string,
   currentUserId?: string,
+  confidentialityLevel?: string,
 ) {
   assertTaskPosition(position);
 
@@ -128,6 +130,12 @@ async function updateTask(
         priority,
         position,
         userId: normalizedUserId ?? null,
+        ...(confidentialityLevel !== undefined
+          ? {
+              confidentialityLevel:
+                normalizeConfidentialityLevel(confidentialityLevel),
+            }
+          : {}),
       })
       .where(and(eq(taskTable.id, id), eq(taskTable.projectId, projectId)))
       .returning({

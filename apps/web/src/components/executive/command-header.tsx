@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Plus, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ExecutiveUsuario } from "@/fetchers/executive";
@@ -52,6 +52,7 @@ export function CommandHeader({
     ? componentLogo(usuario.componente)
     : null;
   const discursoUrl = `/dashboard/workspace/${workspaceId}/discurso`;
+  const despachoUrl = `/despacho?workspaceId=${encodeURIComponent(workspaceId)}`;
 
   const titleText = usuario
     ? `${greeting}, ${buildGreetingName(usuario)}`
@@ -99,23 +100,36 @@ export function CommandHeader({
         </div>
       </div>
 
-      {canCreateTasks ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-border/80"
-            onClick={() => navigate({ to: discursoUrl })}
-          >
-            <FileText />
-            <span>Desde discurso</span>
-          </Button>
-          <Button size="sm" onClick={onCreateTask}>
-            <Plus />
-            <span>{needsProjectFirst ? "Nuevo proyecto" : "Nueva tarea"}</span>
-          </Button>
-        </div>
-      ) : null}
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-border/80"
+          onClick={() => navigate({ to: despachoUrl })}
+        >
+          <ShieldCheck />
+          <span>Modo Despacho</span>
+        </Button>
+        {canCreateTasks ? (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-border/80"
+              onClick={() => navigate({ to: discursoUrl })}
+            >
+              <FileText />
+              <span>Desde discurso</span>
+            </Button>
+            <Button size="sm" onClick={onCreateTask}>
+              <Plus />
+              <span>
+                {needsProjectFirst ? "Nuevo proyecto" : "Nueva tarea"}
+              </span>
+            </Button>
+          </>
+        ) : null}
+      </div>
     </header>
   );
 }

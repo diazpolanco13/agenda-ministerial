@@ -1,9 +1,19 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
+import {
+  combineGradoNombre,
+  generateActaPdf,
+} from "../acta-pdf/generate-acta-pdf";
 import createActivity from "../activity/controllers/create-activity";
 import { adminAuditRequest } from "../admin/audit/admin-audit-request";
 import db from "../database";
-import { discursoBorradorTable, projectTable } from "../database/schema";
+import {
+  discursoBorradorTable,
+  militarPerfilTable,
+  projectTable,
+  taskTable,
+  userTable,
+} from "../database/schema";
 import { ApiError } from "../errors/api-error";
 import assignLabelToTask from "../label/controllers/assign-label-to-task";
 import createLabel from "../label/controllers/create-label";
@@ -17,6 +27,7 @@ import {
   responseTimestamp,
   z,
 } from "../openapi";
+import { allocateOrderFolio } from "../ordenes/folio";
 import { assertProjectAccess } from "../project-access/assert-project-access";
 import { SigefanbUnavailableError } from "../sigefanb/pools";
 import { provisionarResponsable } from "../sigefanb/provisionar-responsable";
@@ -75,6 +86,7 @@ const ordenSchema = z.object({
   prioridad: z.enum(["no-priority", "low", "medium", "high", "urgent"]),
   citaTextual: z.string(),
   confianza: z.number(),
+  folio: z.string().nullable().optional(),
   createdTaskId: z.string().nullable().optional(),
 });
 
@@ -91,6 +103,7 @@ const borradorSchema = z
     motorUsado: z.string(),
     estado: z.string(),
     ordenes: z.array(ordenSchema),
+    asistentes: z.array(z.string()).optional(),
     tareasCreadas: z.number(),
     aprobadoEn: nullableResponseTimestamp,
     createdAt: responseTimestamp,
@@ -316,6 +329,10 @@ const patchBorradorRoute = createRoute({
             titulo: z.string().trim().min(1).max(200).optional(),
             fechaDiscurso: z.string().trim().nullable().optional(),
             ordenes: z.array(ordenSchema).optional(),
+            asistentes: z
+              .array(z.string().trim().min(1).max(160))
+              .max(100)
+              .optional(),
           }),
         },
       },
@@ -362,6 +379,10 @@ const aprobarBorradorRoute = createRoute({
             titulo: z.string().trim().min(1).max(200).optional(),
             defaultProyectoId: z.string().nullable().optional(),
             ordenes: z.array(ordenSchema).optional(),
+            asistentes: z
+              .array(z.string().trim().min(1).max(160))
+              .max(100)
+              .optional(),
           }),
         },
       },
@@ -375,6 +396,181 @@ const aprobarBorradorRoute = createRoute({
     503: errorResponse("Servicio SIGEFANB no disponible"),
   },
 });
+
+const getActaPdfRoute = createRoute({
+  method: "get",
+  operationId: "descargarActaPdfDiscurso",
+  path: "/borradores/{id}/acta-pdf",
+  tags: ["Discurso"],
+  summary: "Descargar Acta de Acuerdos y Órdenes en PDF",
+  middleware: [requireUserSession] as const,
+  request: {
+    params: z.object({ id: z.string().min(1) }),
+  },
+  responses: {
+    200: {
+      description: "Documento PDF del Acta de Acuerdos y Órdenes",
+      content: {
+        "application/pdf": { schema: { type: "string", format: "binary" } },
+      },
+    },
+    403: errorResponse("Permisos insuficientes"),
+    404: errorResponse("Borrador no encontrado"),
+  },
+});
+
+const postActaPdfRoute = createRoute({
+  method: "post",
+  operationId: "generarActaPdfDiscurso",
+  path: "/borradores/{id}/acta-pdf",
+  tags: ["Discurso"],
+  summary: "Generar Acta de Acuerdos y Órdenes en PDF con overrides opcionales",
+  middleware: [requireUserSession] as const,
+  request: {
+    params: z.object({ id: z.string().min(1) }),
+    body: {
+      required: false,
+      content: {
+        "application/json": {
+          schema: z.object({
+            titulo: z.string().trim().min(1).max(200).optional(),
+            asistentes: z
+              .array(z.string().trim().min(1).max(160))
+              .max(100)
+              .optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Documento PDF del Acta de Acuerdos y Órdenes",
+      content: {
+        "application/pdf": { schema: { type: "string", format: "binary" } },
+      },
+    },
+    403: errorResponse("Permisos insuficientes"),
+    404: errorResponse("Borrador no encontrado"),
+  },
+});
+
+async function buildBorradorActaPdfResponse(
+  c: Parameters<typeof hasWorkspacePermission>[0],
+  id: string,
+  overrides?: { titulo?: string; asistentes?: string[] },
+): Promise<Response> {
+  const borrador = await getBorradorWithAccess(c, id, { task: ["read"] });
+  const actorUserId = c.get("userId");
+
+  const selectedOrdenes = borrador.ordenes.filter((orden) => orden.seleccionada);
+  const taskIds = [
+    ...new Set(
+      selectedOrdenes
+        .map((orden) => orden.createdTaskId)
+        .filter((tid): tid is string => Boolean(tid)),
+    ),
+  ];
+
+  const taskRows =
+    taskIds.length > 0
+      ? await db
+          .select({
+            id: taskTable.id,
+            orderFolio: taskTable.orderFolio,
+            userId: taskTable.userId,
+          })
+          .from(taskTable)
+          .where(inArray(taskTable.id, taskIds))
+      : [];
+
+  const taskMap = new Map(taskRows.map((row) => [row.id, row]));
+
+  const userIds = new Set<string>([actorUserId]);
+  for (const orden of selectedOrdenes) {
+    if (orden.responsableUserId) userIds.add(orden.responsableUserId);
+  }
+  for (const taskRow of taskRows) {
+    if (taskRow.userId) userIds.add(taskRow.userId);
+  }
+
+  const userIdList = [...userIds];
+  const userRows =
+    userIdList.length > 0
+      ? await db
+          .select({
+            id: userTable.id,
+            name: userTable.name,
+            grado: militarPerfilTable.grado,
+          })
+          .from(userTable)
+          .leftJoin(
+            militarPerfilTable,
+            eq(userTable.id, militarPerfilTable.userId),
+          )
+          .where(inArray(userTable.id, userIdList))
+      : [];
+
+  const userMap = new Map(userRows.map((row) => [row.id, row]));
+  const actorInfo = userMap.get(actorUserId);
+  const generadoPor = actorInfo
+    ? combineGradoNombre(actorInfo.grado, actorInfo.name)
+    : null;
+
+  const actaOrdenes = selectedOrdenes.map((orden) => {
+    const dbTask = orden.createdTaskId
+      ? taskMap.get(orden.createdTaskId)
+      : undefined;
+    const folio = dbTask?.orderFolio ?? orden.folio ?? "";
+    const respUserId = dbTask?.userId ?? orden.responsableUserId ?? null;
+    const respUser = respUserId ? userMap.get(respUserId) : undefined;
+    const candidate = orden.responsableCedula
+      ? orden.candidatos.find((cand) => cand.cedula === orden.responsableCedula)
+      : undefined;
+
+    const responsableNombre =
+      respUser?.name ??
+      candidate?.nombreCompleto ??
+      orden.responsableMencionado ??
+      "";
+    const responsableGrado =
+      respUser?.grado ?? candidate?.grado ?? orden.pistas?.grado ?? null;
+
+    return {
+      folio,
+      titulo: orden.titulo,
+      descripcion: orden.descripcion,
+      responsableNombre,
+      responsableGrado,
+      plazo: orden.plazo,
+      prioridad: orden.prioridad,
+      citaTextual: orden.citaTextual,
+    };
+  });
+
+  const titulo = overrides?.titulo?.trim() || borrador.titulo;
+  const asistentes = overrides?.asistentes ?? borrador.asistentes ?? [];
+  const fecha = (borrador.fechaDiscurso ?? borrador.createdAt)
+    .toISOString()
+    .slice(0, 10);
+
+  const pdfBytes = await generateActaPdf({
+    titulo,
+    fecha,
+    referencia: borrador.fuenteReferencia ?? null,
+    asistentes,
+    ordenes: actaOrdenes,
+    generadoPor,
+  });
+
+  return new Response(Buffer.from(pdfBytes), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="acta-${borrador.id}.pdf"`,
+      "Cache-Control": "no-store",
+    },
+  });
+}
 
 export const discurso = apiRouter()
   .openapi(ejemploRoute, async (c) => {
@@ -437,6 +633,7 @@ export const discurso = apiRouter()
             motorUsado: extraccion.motorUsado,
             estado: "borrador",
             ordenes: ordenesConProyecto,
+            asistentes: [],
             tareasCreadas: 0,
             aprobadoEn: null,
             createdAt: now,
@@ -509,6 +706,9 @@ export const discurso = apiRouter()
           ? { fechaDiscurso: parseFechaDiscurso(body.fechaDiscurso) }
           : {}),
         ...(body.ordenes !== undefined ? { ordenes: body.ordenes } : {}),
+        ...(body.asistentes !== undefined
+          ? { asistentes: body.asistentes }
+          : {}),
       })
       .where(eq(discursoBorradorTable.id, borrador.id))
       .returning();
@@ -539,6 +739,7 @@ export const discurso = apiRouter()
       titulo?: string;
       defaultProyectoId?: string | null;
       ordenes?: DiscursoOrdenBorrador[];
+      asistentes?: string[];
     };
 
     const tituloActual = body.titulo?.trim() || borrador.titulo;
@@ -643,6 +844,9 @@ export const discurso = apiRouter()
       }
 
       const dueDate = parseDueDate(orden.plazo);
+      const folio =
+        orden.folio?.trim() ||
+        (await allocateOrderFolio(borrador.workspaceId));
       const descriptionParts = [
         orden.descripcion?.trim() || orden.titulo,
         "",
@@ -661,6 +865,10 @@ export const discurso = apiRouter()
         description: descriptionParts.join("\n"),
         priority: orden.prioridad,
         suppressCreatedNotification: true,
+        isOrder: true,
+        orderFolio: folio,
+        orderOrigin: "discurso",
+        orderQuote: orden.citaTextual,
       });
 
       await assignLabelToTask(ordenLabel.id, createdTask.id, userId);
@@ -670,8 +878,9 @@ export const discurso = apiRouter()
           userId: resolvedUserId,
           type: "minister_order",
           title: "Orden del Ministro",
-          content: `Se te asignó la orden «${createdTask.title}» (${tituloActual}).`,
+          content: `Se te asignó la orden [${folio}] «${createdTask.title}» (${tituloActual}).`,
           eventData: {
+            folio,
             taskTitle: createdTask.title,
             origenTitulo: tituloActual,
             projectId: targetProjectId,
@@ -688,6 +897,7 @@ export const discurso = apiRouter()
         userId,
         `Orden creada desde acta: ${tituloActual}`,
         {
+          folio,
           borradorId: borrador.id,
           ordenId: orden.id,
           citaTextual: orden.citaTextual,
@@ -707,6 +917,7 @@ export const discurso = apiRouter()
 
       ordenesActualizadas.push({
         ...orden,
+        folio,
         proyectoId: targetProjectId,
         responsableUserId: resolvedUserId ?? null,
         createdTaskId: createdTask.id,
@@ -722,6 +933,9 @@ export const discurso = apiRouter()
       .set({
         titulo: tituloActual,
         ordenes: ordenesActualizadas,
+        ...(Array.isArray(body.asistentes)
+          ? { asistentes: body.asistentes }
+          : {}),
         estado: "aprobado",
         tareasCreadas: totalCreadas,
         aprobadoEn: new Date(),
@@ -748,6 +962,23 @@ export const discurso = apiRouter()
       },
       200,
     );
+  })
+  .openapi(getActaPdfRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    return buildBorradorActaPdfResponse(c, id);
+  })
+  .openapi(postActaPdfRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const rawBody = (await c.req.json().catch(() => ({}))) as {
+      titulo?: string;
+      asistentes?: string[];
+    };
+    return buildBorradorActaPdfResponse(c, id, {
+      titulo: rawBody?.titulo,
+      asistentes: Array.isArray(rawBody?.asistentes)
+        ? rawBody.asistentes
+        : undefined,
+    });
   });
 
 export default discurso;

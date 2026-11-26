@@ -8,6 +8,8 @@ export type NtfyEventPreferences = {
   dueToday: boolean;
   overdue: boolean;
   ministerOrder: boolean;
+  eventEscalation?: boolean;
+  eventDailyBrief?: boolean;
 };
 
 export type NtfyStatus = {
@@ -36,10 +38,7 @@ export type NtfyProvisionResponse = NtfyStatus & {
   credentials: NtfyOneTimeCredentials;
 };
 
-async function ntfyRequest<T>(
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
+async function ntfyRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(getApiUrl(`/ntfy${path}`), {
     credentials: "include",
     headers: {

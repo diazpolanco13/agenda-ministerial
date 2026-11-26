@@ -1,4 +1,8 @@
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
+import {
+  getConfidentialAuthorizedWorkspaceIds,
+  taskConfidentialitySqlFilter,
+} from "../../confidentiality/access";
 import db from "../../database";
 import {
   activityTable,
@@ -156,6 +160,28 @@ async function globalSearch(params: SearchParams): Promise<{
     projectAccessCondition(resolvedUserId, projectTable.id),
   );
 
+  const authorizedConfWsIds =
+    await getConfidentialAuthorizedWorkspaceIds(resolvedUserId);
+  const authorizedConfList = [...authorizedConfWsIds];
+
+  const taskConfFilter =
+    authorizedConfList.length > 0
+      ? or(
+          inArray(projectTable.workspaceId, authorizedConfList),
+          taskConfidentialitySqlFilter(resolvedUserId, false),
+        )
+      : taskConfidentialitySqlFilter(resolvedUserId, false);
+
+  const projectConfFilter =
+    authorizedConfList.length > 0
+      ? or(
+          inArray(projectTable.workspaceId, authorizedConfList),
+          ne(projectTable.confidentialityLevel, "confidencial"),
+        )
+      : ne(projectTable.confidentialityLevel, "confidencial");
+
+  const folioMatch = query.trim().match(/^ORD-\d{4}-\d{1,6}$/i);
+
   // Check if query matches short-id pattern (e.g. "DEP-23"). `generateProjectSlug`
   // normalizes to NFKC before it stores a key, so the query is normalized too,
   // or a decomposed "ПА-23" would never reach the stored composed form.
@@ -165,6 +191,64 @@ async function globalSearch(params: SearchParams): Promise<{
 
   if (type === "all" || type === "tasks") {
     const seenTaskIds = new Set<string>();
+
+    if (folioMatch) {
+      const folioTasks = await db
+        .select({
+          id: taskTable.id,
+          title: taskTable.title,
+          description: taskTable.description,
+          projectId: taskTable.projectId,
+          projectName: projectTable.name,
+          projectSlug: projectTable.slug,
+          workspaceId: projectTable.workspaceId,
+          workspaceName: workspaceTable.name,
+          userId: taskTable.userId,
+          userName: userTable.name,
+          createdAt: taskTable.createdAt,
+          taskNumber: taskTable.number,
+          priority: taskTable.priority,
+          status: taskTable.status,
+        })
+        .from(taskTable)
+        .leftJoin(projectTable, eq(taskTable.projectId, projectTable.id))
+        .leftJoin(
+          workspaceTable,
+          eq(projectTable.workspaceId, workspaceTable.id),
+        )
+        .leftJoin(userTable, eq(taskTable.userId, userTable.id))
+        .where(
+          and(
+            workspaceFilter,
+            taskConfFilter,
+            projectId ? eq(taskTable.projectId, projectId) : undefined,
+            ilike(taskTable.orderFolio, escapeLikePattern(query.trim())),
+          ),
+        )
+        .limit(5);
+
+      for (const task of folioTasks) {
+        seenTaskIds.add(task.id);
+        results.push({
+          id: task.id,
+          type: "task",
+          title: task.title,
+          description: task.description || undefined,
+          projectId: task.projectId,
+          projectName: task.projectName || undefined,
+          projectSlug: task.projectSlug || undefined,
+          workspaceId: task.workspaceId || undefined,
+          workspaceName: task.workspaceName || undefined,
+          userId: task.userId || undefined,
+          userName: task.userName || undefined,
+          createdAt: task.createdAt,
+          relevanceScore: 10,
+          taskNumber: task.taskNumber || undefined,
+          priority: task.priority || undefined,
+          status: task.status,
+        });
+      }
+    }
 
     // If query matches short-id pattern, look up by project slug + task number first
     if (
@@ -203,6 +287,7 @@ async function globalSearch(params: SearchParams): Promise<{
         .where(
           and(
             workspaceFilter,
+            taskConfFilter,
             projectId ? eq(taskTable.projectId, projectId) : undefined,
             // A project key may hold `_`, which `ilike` reads as "any one
             // character", so `DE_-23` would also match a task in `DEP` and the
@@ -271,10 +356,12 @@ async function globalSearch(params: SearchParams): Promise<{
       .where(
         and(
           workspaceFilter,
+          taskConfFilter,
           projectId ? eq(taskTable.projectId, projectId) : undefined,
           or(
             ilike(taskTable.title, searchPattern),
             ilike(taskTable.description, searchPattern),
+            ilike(taskTable.orderFolio, searchPattern),
           ),
         ),
       )
@@ -331,6 +418,7 @@ async function globalSearch(params: SearchParams): Promise<{
       .where(
         and(
           workspaceFilter,
+          projectConfFilter,
           or(
             ilike(projectTable.name, searchPattern),
             ilike(projectTable.description, searchPattern),
@@ -442,6 +530,7 @@ async function globalSearch(params: SearchParams): Promise<{
       .where(
         and(
           workspaceFilter,
+          taskConfFilter,
           projectId ? eq(taskTable.projectId, projectId) : undefined,
           or(
             ilike(searchableActivityText, searchPattern),

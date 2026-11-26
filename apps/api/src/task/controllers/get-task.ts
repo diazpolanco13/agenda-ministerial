@@ -3,8 +3,12 @@ import { alias } from "drizzle-orm/pg-core";
 import { boardDescription, descriptionDeferred } from "../description-pages";
 import { isSubtask } from "../is-subtask";
 import { getSubtaskCounts } from "../get-subtask-counts";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
+import {
+  canAccessConfidentialTask,
+  canViewConfidentialInWorkspace,
+} from "../../confidentiality/access";
 import db from "../../database";
 import {
   militarPerfilTable,
@@ -37,6 +41,7 @@ async function getTask(taskId: string, board = false, userId?: string) {
       position: taskTable.position,
       createdAt: taskTable.createdAt,
       userId: taskTable.userId,
+      createdBy: taskTable.createdBy,
       assigneeName: userTable.name,
       assigneeId: userTable.id,
       assigneeCedula: militarPerfilTable.cedula,
@@ -44,9 +49,25 @@ async function getTask(taskId: string, board = false, userId?: string) {
       assigneeComponente: militarPerfilTable.componente,
       assigneeUnidad: militarPerfilTable.unidad,
       projectId: taskTable.projectId,
-      workspaceId: sql<string>`(select ${projectTable.workspaceId} from ${projectTable} where ${projectTable.id} = ${taskTable.projectId})`,
+      workspaceId: projectTable.workspaceId,
+      projectConfidentialityLevel: projectTable.confidentialityLevel,
+      confidentialityLevel: taskTable.confidentialityLevel,
+      isOrder: taskTable.isOrder,
+      orderFolio: taskTable.orderFolio,
+      orderOrigin: taskTable.orderOrigin,
+      orderQuote: taskTable.orderQuote,
+      orderClosureStatus: taskTable.orderClosureStatus,
+      orderEvidenceText: taskTable.orderEvidenceText,
+      orderEvidenceAssetId: taskTable.orderEvidenceAssetId,
+      orderEvidenceSubmittedAt: taskTable.orderEvidenceSubmittedAt,
+      orderEvidenceSubmittedBy: taskTable.orderEvidenceSubmittedBy,
+      orderReviewedAt: taskTable.orderReviewedAt,
+      orderReviewedBy: taskTable.orderReviewedBy,
+      orderReviewComment: taskTable.orderReviewComment,
+      orderSealHash: taskTable.orderSealHash,
     })
     .from(taskTable)
+    .innerJoin(projectTable, eq(taskTable.projectId, projectTable.id))
     .leftJoin(userTable, eq(taskTable.userId, userTable.id))
     .leftJoin(
       militarPerfilTable,
@@ -61,6 +82,27 @@ async function getTask(taskId: string, board = false, userId?: string) {
     });
   }
 
+  if (userId && task[0].workspaceId) {
+    const hasRoleAccess = await canViewConfidentialInWorkspace(
+      userId,
+      task[0].workspaceId,
+    );
+    if (
+      !canAccessConfidentialTask({
+        userId,
+        taskConfidentiality: task[0].confidentialityLevel,
+        projectConfidentiality: task[0].projectConfidentialityLevel,
+        assigneeId: task[0].userId,
+        createdBy: task[0].createdBy,
+        hasRoleAccess,
+      })
+    ) {
+      throw new HTTPException(403, {
+        message: "No tienes acceso a esta tarea confidencial",
+      });
+    }
+  }
+
   if (
     userId &&
     task[0].workspaceId &&
@@ -72,8 +114,10 @@ async function getTask(taskId: string, board = false, userId?: string) {
     });
   }
 
-  if (!board) return task[0];
-  const { workspaceId, ...result } = task[0];
+  const { createdBy: _createdBy, ...taskRow } = task[0];
+
+  if (!board) return taskRow;
+  const { workspaceId, ...result } = taskRow;
   if (!workspaceId) return result;
   const parent = alias(taskTable, "parent");
   const parents = await db

@@ -1,6 +1,7 @@
 import { Trash2Icon } from "lucide-react";
 import { memo, type TouchEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ConfidentialityBadge } from "@/components/confidentiality/confidentiality-badge";
 import { TaskPullRequests } from "@/components/task/task-pull-requests";
 import { TaskRecurrenceBadge } from "@/components/task/task-recurrence-badge";
 import {
@@ -194,6 +195,26 @@ function TaskCardContent({
             >
               {task.title}
             </div>
+
+            {(task.orderFolio ||
+              task.isOrder ||
+              task.confidentialityLevel === "reservada" ||
+              task.confidentialityLevel === "confidencial") && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                {(task.orderFolio || task.isOrder) && (
+                  <span className="inline-flex shrink-0 items-center rounded-sm border border-[#4B5D3A]/35 bg-[#4B5D3A]/10 px-1.5 py-0.5 font-mono font-medium text-[10px] leading-none text-[#3f5122] dark:border-[#7fa646]/40 dark:bg-[#7fa646]/15 dark:text-[#b4d67c]">
+                    {task.orderFolio ?? "ORDEN"}
+                  </span>
+                )}
+                {(task.confidentialityLevel === "reservada" ||
+                  task.confidentialityLevel === "confidencial") && (
+                  <ConfidentialityBadge
+                    level={task.confidentialityLevel}
+                    size="sm"
+                  />
+                )}
+              </div>
+            )}
 
             {!taskIsCompleted && (
               <div className="mt-2.5 flex flex-wrap items-center gap-1 empty:hidden">

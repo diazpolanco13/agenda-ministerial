@@ -18,6 +18,7 @@ import { ShortcutListener } from "./lib/shortcuts/shortcut-listener";
 import { captureCheckoutIntent } from "./lib/checkout-intent";
 import { preloadRouteComponents } from "./lib/preload-route-components";
 import { AppI18nProvider } from "./lib/i18n/provider";
+import { registerServiceWorker } from "./lib/register-sw";
 import { routeTree } from "./routeTree.gen";
 
 // Capture a pricing-page `?checkout=<plan>-<interval>` deep link before the
@@ -25,6 +26,7 @@ import { routeTree } from "./routeTree.gen";
 captureCheckoutIntent();
 
 console.info("AGENDA · MPPD — SIGEFANB");
+registerServiceWorker();
 
 const router = createRouter({
   routeTree,

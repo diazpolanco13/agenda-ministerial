@@ -52,10 +52,15 @@ export function mapNotificationToAgendaNtfy(
     | "eventDueToday"
     | "eventOverdue"
     | "eventMinisterOrder"
-  >,
+  > &
+    Partial<Pick<SubscriptionRow, "eventEscalation" | "eventDailyBrief">>,
 ): AgendaNtfyPayload | null {
   const taskTitle = getString(notification.eventData, "taskTitle");
   const titleLabel = taskTitle ? `«${taskTitle}»` : "una tarea";
+  const folio = getString(notification.eventData, "folio");
+  const folioPrefix = folio ? `[${folio}] ` : "";
+  const actorName = getString(notification.eventData, "actorName");
+  const comment = getString(notification.eventData, "comment");
 
   switch (notification.type) {
     case "task_assignee_changed":
@@ -141,10 +146,90 @@ export function mapNotificationToAgendaNtfy(
       return {
         title: "Orden del Ministro",
         body: origen
-          ? `Nueva orden asignada: ${titleLabel} (${origen})`
-          : `Nueva orden del Ministro asignada: ${titleLabel}`,
+          ? `Nueva orden asignada: ${folioPrefix}${titleLabel} (${origen})`
+          : `Nueva orden del Ministro asignada: ${folioPrefix}${titleLabel}`,
         priority: 4,
         tags: "mega,star",
+      };
+    }
+
+    case "order_review_requested": {
+      if (!subscription.eventMinisterOrder) return null;
+      return {
+        title: folio
+          ? `Orden ${folio} para visto bueno`
+          : "Orden lista para visto bueno",
+        body: actorName
+          ? `${folioPrefix}${titleLabel} enviada por ${actorName} para revisión.`
+          : `${folioPrefix}${titleLabel} espera revisión y visto bueno.`,
+        priority: 4,
+        tags: "inbox_tray",
+      };
+    }
+
+    case "order_approved": {
+      if (!subscription.eventMinisterOrder) return null;
+      return {
+        title: folio
+          ? `Visto bueno otorgado (${folio})`
+          : "Visto bueno otorgado",
+        body: `${folioPrefix}${titleLabel} recibió visto bueno y quedó cerrada.`,
+        priority: 3,
+        tags: "white_check_mark",
+      };
+    }
+
+    case "order_returned": {
+      if (!subscription.eventMinisterOrder) return null;
+      return {
+        title: folio
+          ? `Orden devuelta (${folio})`
+          : "Orden devuelta para corrección",
+        body: comment
+          ? `${folioPrefix}${titleLabel}: ${comment}`
+          : `${folioPrefix}${titleLabel} fue devuelta para corrección.`,
+        priority: 4,
+        tags: "warning",
+      };
+    }
+
+    case "order_escalation_t0": {
+      if (subscription.eventEscalation === false) return null;
+      return {
+        title: folio
+          ? `Escalamiento T+0 (${folio})`
+          : "Escalamiento T+0: orden vencida",
+        body:
+          notification.content?.trim() ||
+          `${folioPrefix}${titleLabel} alcanzó su fecha límite sin aprobación.`,
+        priority: 4,
+        tags: "rotating_light",
+      };
+    }
+
+    case "order_escalation_t48": {
+      if (subscription.eventEscalation === false) return null;
+      return {
+        title: folio
+          ? `Escalamiento crítico T+48h (${folio})`
+          : "Escalamiento crítico T+48h",
+        body:
+          notification.content?.trim() ||
+          `${folioPrefix}${titleLabel} superó las 48 horas de vencimiento sin aprobación.`,
+        priority: 5,
+        tags: "rotating_light,sos",
+      };
+    }
+
+    case "daily_brief": {
+      if (subscription.eventDailyBrief === false) return null;
+      return {
+        title: notification.title?.trim() || "Parte diario",
+        body:
+          notification.content?.trim() ||
+          "Tu parte diario del despacho está disponible en AGENDA.",
+        priority: 3,
+        tags: "newspaper",
       };
     }
 

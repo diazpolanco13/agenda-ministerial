@@ -1,6 +1,7 @@
 import { extractAssetIds } from "../../storage/cleanup-assets";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
+import { normalizeConfidentialityLevel } from "../../confidentiality/access";
 import db from "../../database";
 import {
   assetTable,
@@ -18,6 +19,9 @@ import {
   readOptions,
 } from "../../custom-field/choice-options";
 import { publishEvent } from "../../events";
+import assignLabelToTask from "../../label/controllers/assign-label-to-task";
+import createLabel from "../../label/controllers/create-label";
+import { allocateOrderFolio } from "../../ordenes/folio";
 import {
   assertAssignableUser,
   getProjectWorkspaceId,
@@ -66,6 +70,11 @@ async function createTask({
   customFields,
   draftAssetIds,
   suppressCreatedNotification = false,
+  confidentialityLevel,
+  isOrder = false,
+  orderFolio,
+  orderOrigin,
+  orderQuote,
 }: {
   projectId: string;
   currentUserId: string;
@@ -80,6 +89,11 @@ async function createTask({
   customFields?: CustomFieldInput[];
   draftAssetIds?: string[];
   suppressCreatedNotification?: boolean;
+  confidentialityLevel?: string;
+  isOrder?: boolean;
+  orderFolio?: string | null;
+  orderOrigin?: string | null;
+  orderQuote?: string | null;
 }) {
   const resolvedStatus = status || "to-do";
   const resolvedPriority = priority || "no-priority";
@@ -162,89 +176,114 @@ async function createTask({
       message: "Create the task in an open column to make it repeat",
     });
 
-  const createdTask = await db.transaction(async (tx) => {
-    const taskNumber = await claimTaskNumber(projectId, tx);
-    const nextPosition = await nextTaskPosition(
-      tx,
-      projectId,
-      resolvedStatus,
-      column?.id ?? null,
-    );
-
-    const [task] = await tx
-      .insert(taskTable)
-      .values({
+  const { createdTask, workspaceId: resolvedWorkspaceId } = await db.transaction(
+    async (tx) => {
+      const taskNumber = await claimTaskNumber(projectId, tx);
+      const nextPosition = await nextTaskPosition(
+        tx,
         projectId,
-        userId: normalizedUserId ?? null,
-        createdBy: currentUserId,
-        title: title || "",
-        status: resolvedStatus,
-        columnId: column?.id ?? null,
-        startDate: startDate || null,
-        dueDate: dueDate || null,
-        description: description || "",
-        priority: resolvedPriority,
-        recurrence: recurrence ?? null,
-        number: taskNumber,
-        position: nextPosition,
-      })
-      .returning();
-
-    if (task && draftAssetIds?.length) {
-      const referenced = extractAssetIds(description);
-      const ids = [...new Set(draftAssetIds)].filter((id) =>
-        referenced.has(id),
+        resolvedStatus,
+        column?.id ?? null,
       );
-      if (ids.length) {
-        // claimTaskNumber already holds the project row lock in this transaction.
-        const project = await tx.query.projectTable.findFirst({
-          columns: { workspaceId: true },
-          where: eq(projectTable.id, projectId),
-        });
-        if (!project)
-          throw new HTTPException(404, { message: "Project not found" });
-        const claimed = await tx
-          .update(assetTable)
-          .set({
-            taskId: task.id,
-            surface: "description",
-            workspaceId: project.workspaceId,
-          })
-          .where(
-            and(
-              inArray(assetTable.id, ids),
-              eq(assetTable.projectId, projectId),
-              eq(assetTable.createdBy, currentUserId),
-              eq(assetTable.surface, "draft"),
-              isNull(assetTable.taskId),
-            ),
-          )
-          .returning({ id: assetTable.id });
-        if (claimed.length !== ids.length)
-          throw new HTTPException(400, {
-            message:
-              "Some staged uploads are unavailable or belong to another owner/project",
-          });
+
+      // claimTaskNumber already holds the project row lock in this transaction.
+      const project = await tx.query.projectTable.findFirst({
+        columns: { workspaceId: true },
+        where: eq(projectTable.id, projectId),
+      });
+      if (!project)
+        throw new HTTPException(404, { message: "Project not found" });
+
+      const resolvedOrderFolio = isOrder
+        ? orderFolio?.trim() ||
+          (await allocateOrderFolio(project.workspaceId, undefined, tx))
+        : null;
+
+      const [task] = await tx
+        .insert(taskTable)
+        .values({
+          projectId,
+          userId: normalizedUserId ?? null,
+          createdBy: currentUserId,
+          title: title || "",
+          status: resolvedStatus,
+          columnId: column?.id ?? null,
+          startDate: startDate || null,
+          dueDate: dueDate || null,
+          description: description || "",
+          priority: resolvedPriority,
+          recurrence: recurrence ?? null,
+          number: taskNumber,
+          position: nextPosition,
+          confidentialityLevel:
+            normalizeConfidentialityLevel(confidentialityLevel),
+          isOrder: Boolean(isOrder),
+          orderFolio: resolvedOrderFolio,
+          orderOrigin: isOrder ? (orderOrigin ?? "escrita") : null,
+          orderQuote: isOrder ? orderQuote?.trim() || null : null,
+        })
+        .returning();
+
+      if (task && draftAssetIds?.length) {
+        const referenced = extractAssetIds(description);
+        const ids = [...new Set(draftAssetIds)].filter((id) =>
+          referenced.has(id),
+        );
+        if (ids.length) {
+          const claimed = await tx
+            .update(assetTable)
+            .set({
+              taskId: task.id,
+              surface: "description",
+              workspaceId: project.workspaceId,
+            })
+            .where(
+              and(
+                inArray(assetTable.id, ids),
+                eq(assetTable.projectId, projectId),
+                eq(assetTable.createdBy, currentUserId),
+                eq(assetTable.surface, "draft"),
+                isNull(assetTable.taskId),
+              ),
+            )
+            .returning({ id: assetTable.id });
+          if (claimed.length !== ids.length)
+            throw new HTTPException(400, {
+              message:
+                "Some staged uploads are unavailable or belong to another owner/project",
+            });
+        }
       }
-    }
 
-    if (task && mergedCustomFields.length) {
-      await tx.insert(customFieldValueTable).values(
-        mergedCustomFields.map(({ fieldId, value }) => ({
-          taskId: task.id,
-          fieldId,
-          value: value.trim(),
-        })),
-      );
-    }
+      if (task && mergedCustomFields.length) {
+        await tx.insert(customFieldValueTable).values(
+          mergedCustomFields.map(({ fieldId, value }) => ({
+            taskId: task.id,
+            fieldId,
+            value: value.trim(),
+          })),
+        );
+      }
 
-    return task;
-  });
+      return { createdTask: task, workspaceId: project.workspaceId };
+    },
+  );
 
   if (!createdTask) {
     throw new HTTPException(500, {
       message: "Failed to create task",
     });
+  }
+
+  if (createdTask.isOrder) {
+    const ordenLabel = await createLabel(
+      "ORDEN",
+      "#4B5D3A",
+      undefined,
+      resolvedWorkspaceId,
+      currentUserId,
+    );
+    await assignLabelToTask(ordenLabel.id, createdTask.id, currentUserId);
   }
 
   await publishEvent("task.created", {

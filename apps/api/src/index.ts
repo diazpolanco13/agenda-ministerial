@@ -71,6 +71,8 @@ import notificationPreferences from "./notification-preferences";
 import ntfy from "./ntfy";
 import oauth from "./oauth";
 import { createRoute, errorResponse, jsonResponse, z } from "./openapi";
+import ordenes from "./ordenes";
+import parteDiario from "./parte-diario";
 import { initializePlugins, integrationPlugins } from "./plugins";
 import plaud from "./plaud";
 import { migrateGitHubIntegration } from "./plugins/github/migration";
@@ -890,6 +892,8 @@ export function createApp() {
   const discursoApi = api.route("/discurso", discurso);
   const plaudApi = api.route("/plaud", plaud);
   const executiveApi = api.route("/executive", executive);
+  const ordenesApi = api.route("/ordenes", ordenes);
+  const parteDiarioApi = api.route("/parte-diario", parteDiario);
 
   app.route(
     "/",
@@ -1031,6 +1035,8 @@ export function createApp() {
     discursoApi,
     plaudApi,
     executiveApi,
+    ordenesApi,
+    parteDiarioApi,
     workflowRuleApi,
     workspaceApi,
     customFieldApi,
@@ -1178,6 +1184,8 @@ const {
   discursoApi,
   plaudApi,
   executiveApi,
+  ordenesApi,
+  parteDiarioApi,
   workflowRuleApi,
   workspaceApi,
   customFieldApi,
@@ -1231,6 +1239,8 @@ export type AppType =
   | typeof discursoApi
   | typeof plaudApi
   | typeof executiveApi
+  | typeof ordenesApi
+  | typeof parteDiarioApi
   | typeof publicProjectApi
   | typeof invitationPublicApi
   | typeof oauthApi;

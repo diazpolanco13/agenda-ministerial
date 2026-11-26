@@ -5,9 +5,11 @@ import { replayDeferredLabelFields } from "../plugins/sync/replay-deferred-label
 import * as Sentry from "@sentry/node";
 import { Cron } from "croner";
 import { checkDueDateReminders } from "./due-date-reminders";
+import { checkOrderEscalations } from "./order-escalations";
 import { checkProjectWebhookReminders } from "./project-webhook-reminders";
 import { reconcileWorkspaceSeats } from "./seat-reconciliation";
 import { checkTrialReminders } from "./trial-reminders";
+import { runScheduledDailyBriefs } from "../parte-diario/delivery";
 
 const jobs: Cron[] = [];
 
@@ -96,6 +98,20 @@ export function initializeScheduler(): void {
   );
   jobs.push(
     new Cron("23 * * * *", withCheckIn("trial-reminders", checkTrialReminders)),
+  );
+  jobs.push(
+    new Cron(
+      "*/10 * * * *",
+      { protect: true },
+      withCheckIn("order-escalations", checkOrderEscalations),
+    ),
+  );
+  jobs.push(
+    new Cron(
+      "30 6 * * *",
+      { timezone: "America/Caracas", protect: true },
+      withCheckIn("daily-briefs", runScheduledDailyBriefs),
+    ),
   );
   console.log(
     "⏰ Scheduler started (deferred integration edits every minute, reminders every 5 minutes, seat reconciliation and trial reminders hourly)",

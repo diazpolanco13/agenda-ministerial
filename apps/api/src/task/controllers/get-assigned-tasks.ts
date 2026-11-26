@@ -11,6 +11,10 @@ import {
   or,
   sql,
 } from "drizzle-orm";
+import {
+  getConfidentialAuthorizedWorkspaceIds,
+  taskConfidentialitySqlFilter,
+} from "../../confidentiality/access";
 import db from "../../database";
 import {
   columnTable,
@@ -77,11 +81,19 @@ async function getAssignedTasks(
   const includeCompleted = options.includeCompleted === true;
   const allWorkspaces = options.allWorkspaces === true;
 
-  const targetWorkspaceIds = await resolveReadableTaskWorkspaces(
-    workspaceId,
-    userId,
-    allWorkspaces,
-  );
+  const [targetWorkspaceIds, authorizedConfWsIds] = await Promise.all([
+    resolveReadableTaskWorkspaces(workspaceId, userId, allWorkspaces),
+    getConfidentialAuthorizedWorkspaceIds(userId),
+  ]);
+
+  const authorizedConfList = [...authorizedConfWsIds];
+  const confFilter =
+    authorizedConfList.length > 0
+      ? or(
+          inArray(projectTable.workspaceId, authorizedConfList),
+          taskConfidentialitySqlFilter(userId, false),
+        )
+      : taskConfidentialitySqlFilter(userId, false);
 
   const openCondition = sql`not ${isTaskFinalExpr}`;
   const { startOfToday, endOfToday, sevenDaysAgo, thirtyDaysAgo } =
@@ -100,6 +112,7 @@ async function getAssignedTasks(
     ne(taskTable.status, "archived"),
     openCondition,
     projectAccessCondition(userId, projectTable.id),
+    confFilter,
   );
 
   const totalsQuery = db
@@ -126,6 +139,7 @@ async function getAssignedTasks(
           and(isTaskFinalExpr, gte(taskTable.updatedAt, thirtyDaysAgo)),
         ),
         projectAccessCondition(userId, projectTable.id),
+        confFilter,
       )
     : openAndMine;
 
@@ -187,6 +201,21 @@ async function getAssignedTasks(
         assigneeGrado: militarPerfilTable.grado,
         assigneeComponente: militarPerfilTable.componente,
         assigneeUnidad: militarPerfilTable.unidad,
+        projectConfidentialityLevel: projectTable.confidentialityLevel,
+        confidentialityLevel: taskTable.confidentialityLevel,
+        isOrder: taskTable.isOrder,
+        orderFolio: taskTable.orderFolio,
+        orderOrigin: taskTable.orderOrigin,
+        orderQuote: taskTable.orderQuote,
+        orderClosureStatus: taskTable.orderClosureStatus,
+        orderEvidenceText: taskTable.orderEvidenceText,
+        orderEvidenceAssetId: taskTable.orderEvidenceAssetId,
+        orderEvidenceSubmittedAt: taskTable.orderEvidenceSubmittedAt,
+        orderEvidenceSubmittedBy: taskTable.orderEvidenceSubmittedBy,
+        orderReviewedAt: taskTable.orderReviewedAt,
+        orderReviewedBy: taskTable.orderReviewedBy,
+        orderReviewComment: taskTable.orderReviewComment,
+        orderSealHash: taskTable.orderSealHash,
       })
       .from(taskTable)
       .innerJoin(projectTable, eq(taskTable.projectId, projectTable.id))
@@ -234,6 +263,7 @@ async function getAssignedTasks(
             and(isTaskFinalExpr, gte(taskTable.updatedAt, thirtyDaysAgo)),
           ),
           projectAccessCondition(userId, projectTable.id),
+          confFilter,
         ),
       ),
   ]);

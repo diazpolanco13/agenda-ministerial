@@ -1,4 +1,13 @@
-import { Calendar, CircleAlert, History, UserRound } from "lucide-react";
+import {
+  Calendar,
+  CircleAlert,
+  FileCheck2,
+  History,
+  RotateCcw,
+  ScrollText,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import useActiveWorkspace from "@/hooks/queries/workspace/use-active-workspace";
 import useGetWorkspaceUsers from "@/hooks/queries/workspace-users/use-get-workspace-users";
@@ -60,6 +69,14 @@ function getActivityTypeIcon(type: string) {
     case "assignee_changed":
     case "unassigned":
       return <UserRound className={iconClass} />;
+    case "orden_creada":
+      return <ScrollText className={iconClass} />;
+    case "orden_evidencia":
+      return <FileCheck2 className={iconClass} />;
+    case "orden_visto_bueno":
+      return <ShieldCheck className={iconClass} />;
+    case "orden_devuelta":
+      return <RotateCcw className={iconClass} />;
     default:
       return <History className={iconClass} />;
   }
@@ -400,6 +417,81 @@ function renderActivityContent({
   if (["create", "created", "task"].includes(activity.type)) {
     return (
       <span className="text-muted-foreground">{t("activity:created")}</span>
+    );
+  }
+
+  if (
+    activity.type === "orden_creada" ||
+    activity.type === "orden_evidencia" ||
+    activity.type === "orden_visto_bueno" ||
+    activity.type === "orden_devuelta"
+  ) {
+    const folio =
+      typeof eventData?.folio === "string" && eventData.folio.trim()
+        ? eventData.folio.trim()
+        : null;
+    const rawSeal =
+      typeof eventData?.sealHash === "string" && eventData.sealHash.trim()
+        ? eventData.sealHash.trim().slice(0, 12)
+        : null;
+
+    let actionLabel = "";
+    let commentText: string | null = null;
+
+    if (activity.type === "orden_creada") {
+      actionLabel = folio
+        ? `marcó la tarea como orden (${folio})`
+        : "marcó la tarea como orden";
+      commentText =
+        typeof eventData?.quote === "string" && eventData.quote.trim()
+          ? eventData.quote.trim()
+          : null;
+    } else if (activity.type === "orden_evidencia") {
+      actionLabel = folio
+        ? `envió evidencia de cumplimiento (${folio})`
+        : "envió evidencia de cumplimiento";
+      const ev =
+        typeof eventData?.evidenceText === "string" &&
+        eventData.evidenceText.trim()
+          ? eventData.evidenceText.trim()
+          : content &&
+              content !== "Evidencia de cumplimiento enviada a revisión"
+            ? content
+            : null;
+      commentText = ev;
+    } else if (activity.type === "orden_visto_bueno") {
+      actionLabel = folio
+        ? `otorgó visto bueno (${folio})`
+        : "otorgó visto bueno";
+      commentText =
+        typeof eventData?.comment === "string" && eventData.comment.trim()
+          ? eventData.comment.trim()
+          : null;
+    } else {
+      actionLabel = folio
+        ? `devolvió la orden para corrección (${folio})`
+        : "devolvió la orden para corrección";
+      commentText =
+        typeof eventData?.comment === "string" && eventData.comment.trim()
+          ? eventData.comment.trim()
+          : content || null;
+    }
+
+    return (
+      <span className="text-muted-foreground">
+        {actionLabel}
+        {commentText ? (
+          <>
+            {": "}
+            <span className="text-foreground/85">«{commentText}»</span>
+          </>
+        ) : null}
+        {rawSeal ? (
+          <span className="ml-1.5 inline-flex items-center rounded border border-border/80 bg-muted/50 px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
+            Sello {rawSeal}
+          </span>
+        ) : null}
+      </span>
     );
   }
 

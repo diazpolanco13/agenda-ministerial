@@ -525,6 +525,9 @@ export const projectTable = pgTable(
     backgroundObjectKey: text("background_object_key"),
     backgroundMimeType: text("background_mime_type"),
     backgroundVersion: text("background_version"),
+    confidentialityLevel: text("confidentiality_level")
+      .notNull()
+      .default("publica_interna"),
   },
   (table) => [
     index("project_background_object_key_idx")
@@ -717,6 +720,35 @@ export const taskTable = pgTable(
     startDate: timestamp("start_date", { mode: "date" }),
     dueDate: timestamp("due_date", { mode: "date" }),
     recurrence: jsonb("recurrence").$type<TaskRecurrence>(),
+    confidentialityLevel: text("confidentiality_level")
+      .notNull()
+      .default("publica_interna"),
+    isOrder: boolean("is_order").notNull().default(false),
+    orderFolio: text("order_folio"),
+    orderOrigin: text("order_origin"),
+    orderQuote: text("order_quote"),
+    orderClosureStatus: text("order_closure_status")
+      .notNull()
+      .default("abierta"),
+    orderEvidenceText: text("order_evidence_text"),
+    orderEvidenceAssetId: text("order_evidence_asset_id"),
+    orderEvidenceSubmittedAt: timestamp("order_evidence_submitted_at", {
+      mode: "date",
+    }),
+    orderEvidenceSubmittedBy: text("order_evidence_submitted_by").references(
+      () => userTable.id,
+      {
+        onDelete: "set null",
+        onUpdate: "cascade",
+      },
+    ),
+    orderReviewedAt: timestamp("order_reviewed_at", { mode: "date" }),
+    orderReviewedBy: text("order_reviewed_by").references(() => userTable.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    orderReviewComment: text("order_review_comment"),
+    orderSealHash: text("order_seal_hash"),
     createdAt: timestamp("created_at", { mode: "date" })
       .default(utcNow)
       .notNull(),
@@ -736,6 +768,9 @@ export const taskTable = pgTable(
     index("task_assigneeId_idx").on(table.userId),
     index("task_createdBy_idx").on(table.createdBy),
     index("task_columnId_idx").on(table.columnId),
+    index("task_is_order_idx").on(table.isOrder),
+    index("task_order_folio_idx").on(table.orderFolio),
+    index("task_confidentiality_idx").on(table.confidentialityLevel),
     unique("task_project_number_unique").on(table.projectId, table.number),
   ],
 );
@@ -1726,6 +1761,7 @@ export const discursoBorradorTable = pgTable(
       .$type<DiscursoOrdenBorrador[]>()
       .notNull()
       .default([]),
+    asistentes: jsonb("asistentes").$type<string[]>().default([]).notNull(),
     tareasCreadas: integer("tareas_creadas").notNull().default(0),
     aprobadoEn: timestamp("aprobado_en", { mode: "date" }),
     createdAt: timestamp("created_at", { mode: "date" })
@@ -1831,6 +1867,8 @@ export const agendaNtfySubscriptionTable = pgTable(
     eventDueToday: boolean("event_due_today").default(true).notNull(),
     eventOverdue: boolean("event_overdue").default(true).notNull(),
     eventMinisterOrder: boolean("event_minister_order").default(true).notNull(),
+    eventEscalation: boolean("event_escalation").default(true).notNull(),
+    eventDailyBrief: boolean("event_daily_brief").default(true).notNull(),
     credentialsVersion: integer("credentials_version").default(1).notNull(),
     lastTestAt: timestamp("last_test_at", { mode: "date" }),
     createdAt: timestamp("created_at", { mode: "date" })
@@ -1843,5 +1881,98 @@ export const agendaNtfySubscriptionTable = pgTable(
   },
   (table) => [
     index("agenda_ntfy_subscription_enabled_idx").on(table.enabled),
+  ],
+);
+
+// Contador secuencial por espacio de trabajo y año para folios ORD-YYYY-NNNN.
+export const workspaceOrderCounterTable = pgTable(
+  "workspace_order_counter",
+  {
+    id: text("id")
+      .$defaultFn(() => createId())
+      .primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaceTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    year: integer("year").notNull(),
+    lastSeq: integer("last_seq").notNull().default(0),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+      .default(utcNow)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    unique("workspace_order_counter_ws_year_unique").on(
+      table.workspaceId,
+      table.year,
+    ),
+  ],
+);
+
+// Registro anti-duplicados de escalamientos automáticos de órdenes vencidas.
+export const orderEscalationSentTable = pgTable(
+  "order_escalation_sent",
+  {
+    id: text("id")
+      .$defaultFn(() => createId())
+      .primaryKey(),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => taskTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    level: text("level").notNull(), // 't0_jefe_despacho' | 't48_ministro'
+    recipientUserId: text("recipient_user_id")
+      .notNull()
+      .references(() => userTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    sentAt: timestamp("sent_at", { mode: "date" }).default(utcNow).notNull(),
+  },
+  (table) => [
+    unique("order_escalation_sent_unique").on(
+      table.taskId,
+      table.level,
+      table.recipientUserId,
+    ),
+    index("order_escalation_sent_task_idx").on(table.taskId),
+  ],
+);
+
+// Registro anti-duplicados de envío diario del "parte de hoy" por usuario y fecha Caracas.
+export const dailyBriefSentTable = pgTable(
+  "daily_brief_sent",
+  {
+    id: text("id")
+      .$defaultFn(() => createId())
+      .primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => userTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaceTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    dateKey: text("date_key").notNull(),
+    channels: text("channels").array().notNull().default(sql`'{}'`),
+    sentAt: timestamp("sent_at", { mode: "date" }).default(utcNow).notNull(),
+  },
+  (table) => [
+    unique("daily_brief_sent_unique").on(
+      table.userId,
+      table.workspaceId,
+      table.dateKey,
+    ),
+    index("daily_brief_sent_date_idx").on(table.dateKey),
   ],
 );

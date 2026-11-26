@@ -2,10 +2,17 @@ import { client } from "@kaneo/libs";
 import type { InferRequestType } from "hono/client";
 import { HttpError } from "@/lib/http-error";
 
-export type CreateTaskRequest = InferRequestType<
+type CreateTaskJson = InferRequestType<
   (typeof client)["task"][":projectId"]["$post"]
->["json"] &
-  InferRequestType<(typeof client)["task"][":projectId"]["$post"]>["param"];
+>["json"];
+
+export type CreateTaskRequest = CreateTaskJson &
+  InferRequestType<(typeof client)["task"][":projectId"]["$post"]>["param"] & {
+    confidentialityLevel?: string;
+    isOrder?: boolean;
+    orderOrigin?: string;
+    orderQuote?: string;
+  };
 
 async function createTask(
   title: string,
@@ -19,24 +26,34 @@ async function createTask(
   customFields?: { fieldId: string; value: string }[],
   draftAssetIds?: string[],
   recurrence?: CreateTaskRequest["recurrence"],
+  confidentialityLevel?: string,
+  isOrder?: boolean,
+  orderOrigin?: string,
+  orderQuote?: string,
 ) {
   if (!projectId) {
     throw new Error("No project selected for task creation");
   }
 
+  const payload = {
+    title,
+    description,
+    ...(userId ? { userId } : {}),
+    status,
+    startDate: startDate?.toISOString() || undefined,
+    dueDate: dueDate?.toISOString() || undefined,
+    priority,
+    recurrence,
+    customFields,
+    draftAssetIds,
+    ...(confidentialityLevel ? { confidentialityLevel } : {}),
+    ...(isOrder ? { isOrder } : {}),
+    ...(orderOrigin ? { orderOrigin } : {}),
+    ...(orderQuote ? { orderQuote } : {}),
+  } as CreateTaskJson;
+
   const response = await client.task[":projectId"].$post({
-    json: {
-      title,
-      description,
-      ...(userId ? { userId } : {}),
-      status,
-      startDate: startDate?.toISOString() || undefined,
-      dueDate: dueDate?.toISOString() || undefined,
-      priority,
-      recurrence,
-      customFields,
-      draftAssetIds,
-    },
+    json: payload,
     param: { projectId },
   });
 

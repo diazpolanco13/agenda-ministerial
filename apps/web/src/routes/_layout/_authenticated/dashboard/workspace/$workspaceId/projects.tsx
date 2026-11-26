@@ -30,6 +30,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { TrialExpiredCallout } from "@/components/billing/trial-expired-callout";
 import WorkspaceLayout from "@/components/common/workspace-layout";
+import { ConfidentialityBadge } from "@/components/confidentiality/confidentiality-badge";
 import PageTitle from "@/components/page-title";
 import CreateProjectModal from "@/components/shared/modals/create-project-modal";
 import { Badge } from "@/components/ui/badge";
@@ -429,6 +430,17 @@ function RouteComponent() {
                         <div className="flex items-center gap-3">
                           <IconComponent className="w-5 h-5 text-muted-foreground" />
                           <span className="font-medium">{project.name}</span>
+                          {(() => {
+                            const level = (
+                              project as {
+                                confidentialityLevel?: string | null;
+                              }
+                            ).confidentialityLevel;
+                            return level === "reservada" ||
+                              level === "confidencial" ? (
+                              <ConfidentialityBadge level={level} size="sm" />
+                            ) : null;
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell className="py-3">

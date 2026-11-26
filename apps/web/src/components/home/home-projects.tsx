@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ConfidentialityBadge } from "@/components/confidentiality/confidentiality-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import icons from "@/constants/project-icons";
@@ -94,6 +95,14 @@ export function HomeProjects({
                   <span className="min-w-0 flex-1 truncate font-medium text-foreground text-sm">
                     {project.name}
                   </span>
+                  {(() => {
+                    const level = (
+                      project as { confidentialityLevel?: string | null }
+                    ).confidentialityLevel;
+                    return level === "reservada" || level === "confidencial" ? (
+                      <ConfidentialityBadge level={level} size="sm" />
+                    ) : null;
+                  })()}
                   <span className="text-muted-foreground text-xs tabular-nums">
                     {completionPercentage}%
                   </span>

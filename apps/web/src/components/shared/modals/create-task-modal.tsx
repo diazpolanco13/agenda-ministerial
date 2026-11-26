@@ -6,8 +6,12 @@ import {
   CircleAlert,
   Check,
   FolderKanban,
+  Lock,
   Plus,
+  ScrollText,
   Search,
+  Shield,
+  ShieldAlert,
   Tag,
   UserIcon,
   X,
@@ -16,6 +20,10 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  CONFIDENTIALITY_LABELS,
+  type ConfidentialityLevel,
+} from "@/components/confidentiality/confidentiality-badge";
 import { CustomFieldChip } from "@/components/custom-fields/custom-field-chip";
 import {
   findMissingRequiredFields,
@@ -58,7 +66,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getApiUrl } from "@/fetchers/get-api-url";
 import {
   provisionarResponsableSigefanb,
   type SigefanbPersonalItem,
@@ -277,6 +295,14 @@ function CreateTaskModalContent({
   const [searchValue, setSearchValue] = useState("");
   const [selectedColor, setSelectedColor] = useState<LabelColor>("gray");
   const [newLabelName, setNewLabelName] = useState("");
+  const [confidentialityLevel, setConfidentialityLevel] =
+    useState<ConfidentialityLevel>("publica_interna");
+  const [confidentialityOpen, setConfidentialityOpen] = useState(false);
+  const [isOrder, setIsOrder] = useState(false);
+  const [orderOrigin, setOrderOrigin] = useState<
+    "discurso" | "audiencia" | "verbal" | "escrita"
+  >("audiencia");
+  const [orderQuote, setOrderQuote] = useState("");
 
   const routeProjectId =
     location.pathname.match(/\/project\/([^/]+)/)?.[1] ?? null;
@@ -436,6 +462,9 @@ function CreateTaskModalContent({
     recurrence ||
     selectedProjectId ||
     labels.length > 0 ||
+    confidentialityLevel !== "publica_interna" ||
+    isOrder ||
+    orderQuote.trim() ||
     stagedAssetsRef.current.length > 0 ||
     hasCustomFieldChanges,
   );
@@ -583,34 +612,86 @@ function CreateTaskModalContent({
         submitStatus = getInitialTaskColumn(workflow.data)?.slug ?? "planned";
       }
       didSubmitRef.current = true;
-      const savedTask = normalizeTask(
-        await createTask({
-          title: title.trim(),
-          description: description.trim() || "",
-          userId: selectedUser?.id ?? "",
-          priority,
-          projectId: resolvedProjectId,
-          startDate: startDate ? startDate.toISOString() : undefined,
-          dueDate: dueDate ? dueDate.toISOString() : undefined,
-          recurrence: canSetRecurrence ? (recurrence ?? undefined) : undefined,
-          status: submitStatus,
-          draftAssetIds: stagedAssetsRef.current.filter((id) =>
-            description.includes(`/asset/${id}`),
-          ),
-          customFields: customFields
-            .filter(
-              (field) =>
-                !isCustomFieldValueEmpty(
-                  field.type,
-                  customFieldValues[field.id] ?? "",
-                ),
-            )
-            .map((field) => ({
-              fieldId: field.id,
-              value: customFieldValues[field.id] ?? "",
-            })),
-        }),
-      );
+      const createdResponse = await createTask({
+        title: title.trim(),
+        description: description.trim() || "",
+        userId: selectedUser?.id ?? "",
+        priority,
+        projectId: resolvedProjectId,
+        startDate: startDate ? startDate.toISOString() : undefined,
+        dueDate: dueDate ? dueDate.toISOString() : undefined,
+        recurrence: canSetRecurrence ? (recurrence ?? undefined) : undefined,
+        status: submitStatus,
+        ...(confidentialityLevel !== "publica_interna"
+          ? { confidentialityLevel }
+          : {}),
+        ...(isOrder
+          ? {
+              isOrder: true,
+              orderOrigin,
+              ...(orderQuote.trim() ? { orderQuote: orderQuote.trim() } : {}),
+            }
+          : {}),
+        draftAssetIds: stagedAssetsRef.current.filter((id) =>
+          description.includes(`/asset/${id}`),
+        ),
+        customFields: customFields
+          .filter(
+            (field) =>
+              !isCustomFieldValueEmpty(
+                field.type,
+                customFieldValues[field.id] ?? "",
+              ),
+          )
+          .map((field) => ({
+            fieldId: field.id,
+            value: customFieldValues[field.id] ?? "",
+          })),
+      });
+
+      const savedTask = normalizeTask(createdResponse);
+
+      if (isOrder && !savedTask.orderFolio) {
+        try {
+          const orderResponse = await fetch(
+            getApiUrl(`/ordenes/${encodeURIComponent(savedTask.id)}/marcar`),
+            {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                origin: orderOrigin,
+                quote: orderQuote.trim() || null,
+              }),
+            },
+          );
+          if (orderResponse.ok) {
+            const marked = (await orderResponse.json()) as {
+              isOrder?: boolean;
+              orderFolio?: string | null;
+              orderOrigin?: string | null;
+              orderQuote?: string | null;
+            };
+            savedTask.isOrder = marked.isOrder ?? true;
+            savedTask.orderFolio = marked.orderFolio ?? null;
+            savedTask.orderOrigin = marked.orderOrigin ?? orderOrigin;
+            savedTask.orderQuote =
+              marked.orderQuote ?? (orderQuote.trim() || null);
+            void queryClient.invalidateQueries({ queryKey: ["ordenes"] });
+            void queryClient.invalidateQueries({
+              queryKey: ["tasks", resolvedProjectId],
+            });
+          } else {
+            toast.error(
+              "La tarea se creó, pero no se pudo marcar como orden oficial.",
+            );
+          }
+        } catch {
+          toast.error(
+            "La tarea se creó, pero no se pudo marcar como orden oficial.",
+          );
+        }
+      }
 
       for (const label of labels) {
         try {
@@ -647,6 +728,10 @@ function CreateTaskModalContent({
         setSearchValue("");
         setSelectedColor("gray");
         setNewLabelName("");
+        setConfidentialityLevel("publica_interna");
+        setIsOrder(false);
+        setOrderOrigin("audiencia");
+        setOrderQuote("");
         stagedAssetsRef.current = [];
         setEditorVersion((version) => version + 1);
         didSubmitRef.current = false;
@@ -1382,6 +1467,67 @@ function CreateTaskModalContent({
                   )}
                 </PopoverContent>
               </Popover>
+              <Popover
+                open={confidentialityOpen}
+                onOpenChange={setConfidentialityOpen}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors border border-border hover:bg-accent/50",
+                      confidentialityLevel !== "publica_interna"
+                        ? "bg-accent/30 text-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {confidentialityLevel === "confidencial" ? (
+                      <Lock className="w-3.5 h-3.5 text-red-700 dark:text-red-400" />
+                    ) : confidentialityLevel === "reservada" ? (
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+                    ) : (
+                      <Shield className="w-3.5 h-3.5" />
+                    )}
+                    <span>{CONFIDENTIALITY_LABELS[confidentialityLevel]}</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-1" align="start">
+                  <div className="space-y-1">
+                    {(
+                      [
+                        "publica_interna",
+                        "reservada",
+                        "confidencial",
+                      ] as ConfidentialityLevel[]
+                    ).map((level) => (
+                      <button
+                        key={level}
+                        type="button"
+                        className="w-full flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent/50 text-left transition-colors h-8"
+                        onClick={() => {
+                          setConfidentialityLevel(level);
+                          setConfidentialityOpen(false);
+                        }}
+                      >
+                        {level === "confidencial" ? (
+                          <Lock className="w-3.5 h-3.5 text-red-700 dark:text-red-400" />
+                        ) : level === "reservada" ? (
+                          <ShieldAlert className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+                        ) : (
+                          <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+                        )}
+                        <span className="text-sm">
+                          {CONFIDENTIALITY_LABELS[level]}
+                        </span>
+                        {confidentialityLevel === level && (
+                          <Check className="ml-auto h-4 w-4" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
               {customFields.length > 0 && (
                 <div className="flex w-full flex-wrap items-center gap-2">
                   {customFields.map((field) => (
@@ -1400,6 +1546,79 @@ function CreateTaskModalContent({
                   ))}
                 </div>
               )}
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border/80 bg-muted/20 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <label
+                  htmlFor="create-task-is-order"
+                  className="flex cursor-pointer items-center gap-2 text-xs font-medium text-foreground"
+                >
+                  <ScrollText className="size-3.5 text-[#4B5D3A]" />
+                  <span>Marcar como Orden del Ministro</span>
+                </label>
+                <Switch
+                  id="create-task-is-order"
+                  checked={isOrder}
+                  onCheckedChange={setIsOrder}
+                />
+              </div>
+
+              {isOrder ? (
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <span className="block text-[11px] font-medium text-muted-foreground">
+                      Origen de la orden
+                    </span>
+                    <Select
+                      value={orderOrigin}
+                      onValueChange={(value) => {
+                        if (
+                          value === "discurso" ||
+                          value === "audiencia" ||
+                          value === "verbal" ||
+                          value === "escrita"
+                        ) {
+                          setOrderOrigin(value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger size="sm" aria-label="Origen de la orden">
+                        <SelectValue>
+                          {orderOrigin === "discurso"
+                            ? "Discurso"
+                            : orderOrigin === "audiencia"
+                              ? "Audiencia"
+                              : orderOrigin === "verbal"
+                                ? "Verbal"
+                                : "Escrita"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="discurso">Discurso</SelectItem>
+                        <SelectItem value="audiencia">Audiencia</SelectItem>
+                        <SelectItem value="verbal">Verbal</SelectItem>
+                        <SelectItem value="escrita">Escrita</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="create-task-order-quote"
+                      className="block text-[11px] font-medium text-muted-foreground"
+                    >
+                      Cita textual (opcional)
+                    </label>
+                    <Input
+                      id="create-task-order-quote"
+                      size="sm"
+                      value={orderQuote}
+                      onChange={(e) => setOrderQuote(e.target.value)}
+                      placeholder="Instrucción textual del Ministro..."
+                    />
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 

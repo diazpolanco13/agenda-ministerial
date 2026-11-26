@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
+import { normalizeConfidentialityLevel } from "../../confidentiality/access";
 import db from "../../database";
 import { projectTable } from "../../database/schema";
 import {
@@ -18,6 +19,7 @@ async function updateProject(
   workspaceId: string,
   canShare: boolean,
   includeSubtasks?: boolean,
+  confidentialityLevel?: string,
 ) {
   return db.transaction(async (tx) => {
     await tx.execute(
@@ -66,6 +68,12 @@ async function updateProject(
         description,
         isPublic,
         ...(includeSubtasks === undefined ? {} : { includeSubtasks }),
+        ...(confidentialityLevel === undefined
+          ? {}
+          : {
+              confidentialityLevel:
+                normalizeConfidentialityLevel(confidentialityLevel),
+            }),
       })
       .where(eq(projectTable.id, id))
       .returning();

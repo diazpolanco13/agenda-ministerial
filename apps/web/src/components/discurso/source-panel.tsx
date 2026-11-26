@@ -8,7 +8,7 @@ import {
   Terminal,
   Wand2,
 } from "lucide-react";
-import { type ChangeEvent, useState } from "react";
+import { type ChangeEvent, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +71,47 @@ export function SourcePanel({
     "txt" | "md" | "vtt" | "srt" | "json" | undefined
   >(undefined);
   const [importingId, setImportingId] = useState<string | null>(null);
+  const [prefillMeta, setPrefillMeta] = useState<{
+    fuenteTipo: DiscursoFuenteTipo;
+    fuenteReferencia: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.sessionStorage.getItem("agenda-discurso-prefill");
+      if (!raw) return;
+      window.sessionStorage.removeItem("agenda-discurso-prefill");
+      const parsed = JSON.parse(raw) as {
+        titulo?: unknown;
+        contenido?: unknown;
+        fuenteTipo?: unknown;
+        fuenteReferencia?: unknown;
+      };
+      if (typeof parsed.titulo === "string" && parsed.titulo.trim()) {
+        setTitulo(parsed.titulo);
+      }
+      if (typeof parsed.contenido === "string") {
+        setContenido(parsed.contenido);
+      }
+      const fuenteTipo: DiscursoFuenteTipo =
+        parsed.fuenteTipo === "texto" ||
+        parsed.fuenteTipo === "archivo" ||
+        parsed.fuenteTipo === "plaud" ||
+        parsed.fuenteTipo === "ejemplo"
+          ? parsed.fuenteTipo
+          : "texto";
+      const fuenteReferencia =
+        typeof parsed.fuenteReferencia === "string"
+          ? parsed.fuenteReferencia
+          : null;
+      setPrefillMeta({ fuenteTipo, fuenteReferencia });
+      setActiveTab("texto");
+      toast.success("Dictado de voz cargado en el formulario");
+    } catch {
+      window.sessionStorage.removeItem("agenda-discurso-prefill");
+    }
+  }, []);
 
   const { data: plaudEstado, isLoading: loadingEstado } = useQuery({
     queryKey: ["plaud-estado"],
@@ -169,9 +210,14 @@ export function SourcePanel({
       fechaDiscurso,
       contenido,
       formato: fuenteTipo === "archivo" ? archivoFormato : undefined,
-      fuenteTipo,
+      fuenteTipo:
+        fuenteTipo === "texto" && prefillMeta
+          ? prefillMeta.fuenteTipo
+          : fuenteTipo,
       fuenteReferencia:
-        fuenteTipo === "archivo" ? archivoNombre : "Entrada manual",
+        fuenteTipo === "archivo"
+          ? archivoNombre
+          : (prefillMeta?.fuenteReferencia ?? "Entrada manual"),
     });
   };
 

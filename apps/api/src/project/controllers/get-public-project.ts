@@ -12,7 +12,10 @@ export async function getPublicProject(
   options: GetTasksOptions = {},
 ) {
   const [project] = await db
-    .select({ isPublic: projectTable.isPublic })
+    .select({
+      isPublic: projectTable.isPublic,
+      confidentialityLevel: projectTable.confidentialityLevel,
+    })
     .from(projectTable)
     .where(
       and(
@@ -29,7 +32,7 @@ export async function getPublicProject(
     });
   }
 
-  if (!project.isPublic) {
+  if (!project.isPublic || project.confidentialityLevel === "confidencial") {
     throw new HTTPException(403, {
       message: "Project is not public",
     });

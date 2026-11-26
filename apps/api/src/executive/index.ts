@@ -81,6 +81,8 @@ const executiveSummarySchema = z
         priority: z.string(),
         completada: z.boolean(),
         esOrden: z.boolean(),
+        orderFolio: z.string().nullable(),
+        orderClosureStatus: z.string(),
         dueDate: nullableResponseTimestamp,
         createdAt: responseTimestamp,
         responsable: executiveResponsableSchema.nullable(),
